@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# Install script for Google Chrome.
+# https://www.ubuntuupdates.org/ppa/google_chrome
+
+basepath=$( realpath $( dirname "$0" )/../ )
+
+if [[ "$USER" == "root" ]]; then
+    echo "Please run the script as a normal user, exiting..."
+    exit 1
+fi
+
+# Test sudo; exit if wrong password or terminated via Ctrl-C.
+sudo id >/dev/null; [[ $? -ne 0 ]] && exit 2
+
+# Install package.
+dpkg --list google-chrome-stable >/dev/null 2>&1
+
+if [[ $? -eq 1 ]]; then
+    set -x  # enable verbose output
+
+    # Install curl.
+    dpkg --list curl apt-transport-https software-properties-common >/dev/null 2>&1
+
+    if [[ $? -eq 1 ]]; then
+        sudo apt update -y
+        sudo apt install -y curl apt-transport-https software-properties-common
+    fi
+
+    # Add the public key and repository.
+    curl -s https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor | \
+      sudo tee /etc/apt/trusted.gpg.d/google-chrome.gpg >/dev/null
+
+    listfile=/etc/apt/sources.list.d/google-chrome.list
+
+    sudo sh -c "echo \
+      'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' \
+      >> $listfile"
+
+    sudo sort -u $listfile -o $listfile
+
+    # Installation.
+    sudo apt update -y
+    sudo apt install -y google-chrome-stable
+
+    set +x  # disable verbose output
+fi
+
+app=google-chrome
+
+# Install run script.
+if [[ ! -f ~/bin/run-${app} ]]; then
+    mkdir -p ~/bin
+    cp -v "${basepath}/bin/run-${app}" ~/bin/.
+fi
+
+# Install desktop file.
+if [[ ! -f ~/.local/share/applications/${app}.desktop ]]; then
+    mkdir -p ~/.local/share/applications
+    cp -v "${basepath}/desktop/${app}.desktop" ~/.local/share/applications/.
+fi
+
+echo "OK"
+

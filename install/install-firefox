@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Install script for Firefox.
+
+basepath=$( realpath $( dirname "$0" )/../ )
+
+if [[ "$USER" == "root" ]]; then
+    echo "Please run the script as a normal user, exiting..."
+    exit 1
+fi
+
+# Test sudo; exit if wrong password or terminated via Ctrl-C.
+sudo id >/dev/null; [[ $? -ne 0 ]] && exit 2
+
+# Install package.
+dpkg --list firefox >/dev/null 2>&1
+
+if [[ $? -eq 1 ]]; then
+    set -x  # enable verbose output
+    sudo apt update -y
+    sudo apt install -y firefox
+    set +x  # disable verbose output
+fi
+
+app=firefox
+
+# Install run script.
+if [[ ! -f ~/bin/run-${app} ]]; then
+    mkdir -p ~/bin
+    cp -v "${basepath}/bin/run-${app}" ~/bin/.
+fi
+
+# Install desktop file.
+if [[ ! -f ~/.local/share/applications/${app}.desktop ]]; then
+    mkdir -p ~/.local/share/applications
+    cp -v "${basepath}/desktop/${app}.desktop" ~/.local/share/applications/.
+fi
+
+echo "OK"
+

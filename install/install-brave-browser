@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# Install script for Brave Browser.
+# https://brave.com/linux/
+
+basepath=$( realpath $( dirname "$0" )/../ )
+
+if [[ "$USER" == "root" ]]; then
+    echo "Please run the script as a normal user, exiting..."
+    exit 1
+fi
+
+# Test sudo; exit if wrong password or terminated via Ctrl-C.
+sudo id >/dev/null; [[ $? -ne 0 ]] && exit 2
+
+# Install package.
+dpkg --list brave-browser >/dev/null 2>&1
+
+if [[ $? -eq 1 ]]; then
+    set -x  # enable verbose output
+
+    # Install curl.
+    dpkg --list curl apt-transport-https software-properties-common >/dev/null 2>&1
+
+    if [[ $? -eq 1 ]]; then
+        sudo apt update -y
+        sudo apt install -y curl apt-transport-https software-properties-common
+    fi
+
+    # Add the public key and repository.
+    curl -s https://brave-browser-apt-release.s3.brave.com/brave-core.asc | gpg --dearmor | \
+      sudo tee /etc/apt/trusted.gpg.d/brave-browser-release.gpg >/dev/null
+
+    listfile=/etc/apt/sources.list.d/brave-browser-release.list
+
+    sudo sh -c "echo \
+      'deb [arch=amd64] https://brave-browser-apt-release.s3.brave.com/ stable main' \
+      >> $listfile"
+
+    sudo sort -u $listfile -o $listfile
+
+    # Installation.
+    sudo apt update -y
+    sudo apt install -y brave-browser
+
+    set +x  # disable verbose output
+fi
+
+app=brave-browser
+
+# Install run script.
+if [[ ! -f ~/bin/run-${app} ]]; then
+    mkdir -p ~/bin
+    cp -v "${basepath}/bin/run-${app}" ~/bin/.
+fi
+
+# Install desktop file.
+if [[ ! -f ~/.local/share/applications/${app}.desktop ]]; then
+    mkdir -p ~/.local/share/applications
+    cp -v "${basepath}/desktop/${app}.desktop" ~/.local/share/applications/.
+fi
+
+echo "OK"
+

@@ -1,0 +1,32 @@
+#!/bin/bash
+# Launch script for Firefox.
+
+EXECCMD=/usr/bin/firefox
+
+if [[ ! -x "$EXECCMD" ]]
+then
+    echo "ERROR: cannot access '$EXECCMD': No such executable"
+    exit 1
+fi
+
+if [[ -f /usr/bin/nvidia-settings && -f /usr/local/lib/dri/nvdec_drv_video.so ]]
+then
+    export LIBVA_DRIVERS_PATH=/usr/local/lib/dri:/usr/lib/x86_64-linux-gnu/dri
+    export LIBVA_DRIVER_NAME=nvdec
+fi
+
+if [[ $XDG_SESSION_TYPE == wayland ]]
+then
+    export MOZ_ENABLE_WAYLAND=1
+else
+    export MOZ_DISABLE_WAYLAND=1
+    export MOZ_X11_EGL=1
+fi
+
+export MOZ_ACCELERATED=1
+export MOZ_DISABLE_RDD_SANDBOX=1
+export MOZ_USE_XINPUT2=1
+export MOZ_WEBRENDER=1
+
+exec firefox $* &>/dev/null &
+

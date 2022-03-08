@@ -1,0 +1,91 @@
+#!/bin/bash
+
+# Install script for Chromium.
+# https://github.com/ungoogled-software/ungoogled-chromium-debian
+
+basepath=$( realpath $( dirname "$0" )/../ )
+
+if [[ "$USER" == "root" ]]; then
+    echo "Please run the script as a normal user, exiting..."
+    exit 1
+fi
+
+# Test sudo; exit if wrong password or terminated via Ctrl-C.
+sudo id >/dev/null; [[ $? -ne 0 ]] && exit 2
+
+# Install package.
+dpkg --list ungoogled-chromium >/dev/null 2>&1
+
+if [[ $? -eq 1 ]]; then
+    osname=$( grep ^ID= /etc/os-release | cut -f2 -d= )
+    osname=${osname^}  # capitalize the first letter
+    codename=$( grep ^VERSION_CODENAME= /etc/os-release | cut -f2 -d= )
+    codename=${codename^}  # capitalize the first letter
+
+    if [[ "$osname" != "Debian" && "$osname" != "Ubuntu" ]]; then
+        echo "Unsupported OS '$osname', exiting..."
+        exit 1
+    fi
+
+    if [[ "$osname" == "Debian" ]]; then
+        if [[ "$codename" != "Bullseye" && "$codename" != "Sid" ]]; then
+            echo "Unsupported OS '$osname ($codename)', exiting..."
+            exit 1
+        fi
+    fi
+
+    if [[ "$osname" == "Ubuntu" ]]; then
+        if [[ "$codename" != "Focal" && "$codename" != "Impish" ]]; then
+            echo "Unsupported OS '$osname ($codename)', exiting..."
+            exit 1
+        fi
+    fi
+
+    set -x  # enable verbose output
+
+    # First uninstall Chromium, if it is installed, as it can conflict with ungoogled-chromium.
+    sudo apt-get autoremove -y --purge chromium
+
+    # Install curl.
+    dpkg --list curl apt-transport-https software-properties-common >/dev/null 2>&1
+
+    if [[ $? -eq 1 ]]; then
+        sudo apt update -y
+        sudo apt install -y curl apt-transport-https software-properties-common
+    fi
+
+    # Add the public key and repository.
+    curl -s https://download.opensuse.org/repositories/home:/ungoogled_chromium/${osname}_${codename}/Release.key | \
+      gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/home-ungoogled_chromium.gpg >/dev/null
+
+    listfile=/etc/apt/sources.list.d/home-ungoogled_chromium.list
+
+    sudo sh -c "echo \
+      'deb http://download.opensuse.org/repositories/home:/ungoogled_chromium/${osname}_${codename}/ /' \
+      >> $listfile"
+
+    sudo sort -u $listfile -o $listfile
+
+    # Installation.
+    sudo apt update -y
+    sudo apt install -y ungoogled-chromium
+
+    set +x  # disable verbose output
+fi
+
+app=chromium
+
+# Install run script.
+if [[ ! -f ~/bin/run-${app} ]]; then
+    mkdir -p ~/bin
+    cp -v "${basepath}/bin/run-${app}" ~/bin/.
+fi
+
+# Install desktop file.
+if [[ ! -f ~/.local/share/applications/${app}.desktop ]]; then
+    mkdir -p ~/.local/share/applications
+    cp -v "${basepath}/desktop/${app}.desktop" ~/.local/share/applications/.
+fi
+
+echo "OK"
+

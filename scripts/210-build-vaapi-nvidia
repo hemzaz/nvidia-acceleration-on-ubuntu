@@ -1,0 +1,122 @@
+#!/bin/bash
+
+# Exit if the graphics driver is not installed.
+if [[ ! -f /usr/bin/nvidia-settings ]]; then
+    echo "$0: package nvidia-settings is not installed, skipping..."
+    exit 0
+fi
+
+# Exit silently if the the graphics driver does not meet requirement.
+version=`/usr/bin/nvidia-settings --version | grep version`
+version=${version##* } # extract the version string from the line
+version=`echo $version | cut -d. -f1-2` # want major and minor, not revision
+
+if [[ $(bc -l <<< "${version} < 470.57") -eq 1 ]]; then
+    echo "$0: NVIDIA graphics driver is older than 470.57, skipping..."
+    exit 0
+fi
+
+name=nvidia-vaapi-driver
+echo "building ${name}"
+
+mkdir -p builddir && cd builddir
+rm -fr ${name}
+
+if [[ ! -f ${name}.tar.gz ]]; then
+    url="https://github.com/elFarto/nvidia-vaapi-driver"
+    echo "git clone --depth 1 ${url}"
+    git clone --depth 1 ${url}
+
+    # To allow building on Ubuntu using older meson 0.53.2 binary,
+    # remove meson_version and meson.add_devenv block from meson.build.
+    cd ${name}
+    mv meson.build meson.build.orig
+    awk '
+        BEGIN { skip_rest = 0 }
+        /meson_version/ { next }
+        /meson.add_devenv/ { skip_rest = 1 }
+        {
+            if (skip_rest == 1) next
+            print
+        }
+    ' meson.build.orig >meson.build
+    cd ..
+
+    tar czf ${name}.tar.gz ${name}
+else
+    tar xzf ${name}.tar.gz
+fi
+
+# The "libgstreamer-plugins-bad1.0-dev" package has opencv and sub-
+# dependencies (i.e. 182 additional packages, >500MB) which are not
+# required to build the NVIDIA NVDEC-enabled VA-API driver.
+#
+# Instead, update the dependencies list inside the package. Leave the
+# modified package inside the build directory, but do not install it.
+# The build script will install/uninstall the package automatically.
+#
+# Skip modification steps if the package is already installed.
+
+pkgname=libgstreamer-plugins-bad1.0-dev
+dpkg --list | grep -q $pkgname
+
+if [[ $? -eq 0 ]]; then
+    echo "using installed $pkgname"
+    use_installed_pkg=1
+else
+    pkgarch=`dpkg --print-architecture`
+    pkgversion=`dpkg-query -f '${Version}' -W libgstreamer-plugins-bad1.0-0`
+    pkgfile="modpkg/${pkgname}_${pkgversion}_${pkgarch}.deb"
+
+    if [[ ! -f $pkgfile ]]; then
+        mkdir -p modpkg
+
+        # Remove outdated package from the build folder.
+        rm -f modpkg/${pkgname}_*.deb
+
+        # Download package and move it to the build folder.
+        echo "apt download $pkgname"
+        apt download $pkgname 2>/dev/null
+        mv -f ${pkgname}_*.deb modpkg/.
+
+        # Extract content, modify dependency list, and re-bundle package.
+        pushd modpkg >/dev/null
+        pkgfile=`ls -1 ${pkgname}_*.deb | tail -1`
+        pkgdir=${pkgname}_dir
+
+        echo "dpkg-deb -x $pkgfile $pkgdir"
+        dpkg-deb -x $pkgfile $pkgdir
+
+        echo "pkg-deb --control $pkgfile $pkgdir/DEBIAN"
+        dpkg-deb --control $pkgfile $pkgdir/DEBIAN
+
+        echo "Updating dependency list"
+        awk '
+            /^Depends:/ { sub(/,.*/, ""); print; next }
+            { print }
+        ' $pkgdir/DEBIAN/control >control.$$ && \
+        mv -f control.$$ $pkgdir/DEBIAN/control
+
+        echo "dpkg -b $pkgdir $pkgfile"
+        dpkg -b $pkgdir $pkgfile
+        rm -fr $pkgdir
+
+        popd >/dev/null
+    fi
+
+    echo "using $(ls -1 modpkg/${pkgname}_*.deb | tail -1)"
+    dpkg -i $(ls -1 modpkg/${pkgname}_*.deb | tail -1)
+    use_installed_pkg=0
+fi
+
+if [[ -d ${name} ]]; then
+    mkdir -p ${name}/build && cd ${name}/build
+    install_dest=/usr/local/lib/dri/nvdec_drv_video.so
+
+    meson setup .. --prefix=/usr/local --libdir=lib && ninja && \
+    /usr/bin/printf "Installing nvidia_drv_video.so to $install_dest\n" && \
+    cp -p nvidia_drv_video.so $install_dest
+
+    [[ $use_installed_pkg -eq 0 ]] && apt remove -y $pkgname
+fi
+

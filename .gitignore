@@ -1,0 +1,16 @@
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+*.bak
+*.log
+*.old
+*.out
+*.swp
+*.tmp
+
+/scripts/builddir
+

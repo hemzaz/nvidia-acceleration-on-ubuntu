@@ -1,0 +1,34 @@
+#!/bin/bash
+# Usage: ./000-install-dependencies
+
+# Get installed packages; append leading and trailing spaces.
+installed_packages=`dpkg --list | grep '^ii ' | cut -f1 -d: | awk '{ print "", $2, "" }'`
+
+# Append list of packages to install.
+add_list=""
+count=0
+
+for package_name in \
+    build-essential curl git meson ninja-build \
+    libavcodec-extra libdrm-dev libegl-dev libgl-dev libglx-dev \
+    libgstreamer1.0-dev libgstreamer-plugins-bad1.0-0 libvdpau-dev \
+    libwayland-dev libxext-dev libxfixes-dev vainfo \
+;do
+    if [[ ! ${installed_packages} =~ " ${package_name} " ]]; then
+        add_list="${add_list} ${package_name}"
+    else
+        count=$(( ${count} + 1 ))
+    fi
+done
+
+# Install missing packages.
+if [[ -n ${add_list} ]]; then
+    add_list=${add_list## } # remove leading whitespace
+    echo "apt update -y && apt install -y ${add_list}"
+    apt update -y && apt install -y ${add_list}
+fi
+
+if [[ ${count} -gt 0 ]]; then
+    echo "${count} packages were already installed"
+fi
+

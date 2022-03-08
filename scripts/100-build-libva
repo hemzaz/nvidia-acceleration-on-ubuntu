@@ -1,0 +1,25 @@
+#!/bin/bash
+
+name=libva
+branch=v2.14-branch
+echo "building ${name} branch ${branch}"
+
+mkdir -p builddir && cd builddir
+rm -fr ${name}
+
+if [[ ! -f ${name}.tar.gz ]]; then
+    url="https://github.com/intel/libva.git"
+    echo "git clone --depth 1 --branch ${branch} ${url}"
+    git clone --depth 1 --branch ${branch} ${url}
+    tar czf ${name}.tar.gz ${name}
+else
+    tar xzf ${name}.tar.gz
+fi
+
+if [[ -d ${name} ]]; then
+    cd ${name}
+    ./autogen.sh --prefix=/usr/local && \
+    make -j && make install && \
+    rm -f /usr/local/lib/libva*.la
+fi
+

@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# Exit silently if the graphics driver is not installed.
+if [[ ! -f /usr/bin/nvidia-settings ]]; then
+    echo "$0: package nvidia-settings is not installed, skipping..."
+    exit 0
+fi
+
+name="vdpau-va-driver-vp9"
+echo "building ${name}"
+
+mkdir -p builddir && cd builddir
+rm -fr ${name}
+
+if [[ ! -f ${name}.tar.gz ]]; then
+    url="https://github.com/xuanruiqi/${name}.git"
+    echo "git clone --depth 1 ${url}"
+    git clone --depth 1 ${url}
+
+    # Rename target inside src/Makefile.am so not to create
+    # symbolic links automatically, during installation.
+    cd ${name}
+    mv src/Makefile.am src/Makefile.am.orig
+    awk '
+        /^install-data-hook:/ {
+            print "install-data-hook-not-used:"
+            next
+        }
+        {
+            print
+        }
+    ' src/Makefile.am.orig >src/Makefile.am
+    cd ..
+
+    tar czf ${name}.tar.gz ${name}
+fi
+
+tar xzf ${name}.tar.gz
+
+if [[ -d ${name} ]]; then
+    cd ${name}
+    ./autogen.sh --prefix=/usr/local --enable-glx && \
+    make -j 4 && make install && \
+    rm -f /usr/local/lib/dri/vdpau_drv_video.la
+    pushd /usr/local/lib/dri >/dev/null
+    ln -sf vdpau_drv_video.so nvidia_drv_video.so
+    popd >/dev/null
+fi
+

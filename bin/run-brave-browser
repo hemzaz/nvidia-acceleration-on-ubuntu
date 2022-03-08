@@ -1,0 +1,25 @@
+#!/bin/bash
+# Launch script for Brave Browser.
+
+EXECCMD=/usr/bin/brave-browser-stable
+
+if [[ ! -x "$EXECCMD" ]]
+then
+    echo "ERROR: cannot access '$EXECCMD': No such executable"
+    exit 1
+fi
+
+if [[ -f /usr/bin/nvidia-settings && -f /usr/local/lib/dri/vdpau_drv_video.so ]]
+then
+    export LIBVA_DRIVERS_PATH=/usr/local/lib/dri:/usr/lib/x86_64-linux-gnu/dri
+    export LIBVA_DRIVER_NAME=vdpau
+fi
+
+[[ $XDG_SESSION_TYPE == wayland ]] && GL=egl || GL=desktop
+
+exec "$EXECCMD" --window-size=1200,1050 \
+    --disable-features=UseChromeOSDirectVideoDecoder \
+    --disable-gpu-driver-bug-workarounds --enable-zero-copy \
+    --enable-accelerated-2d-canvas --enable-smooth-scrolling \
+    --use-gl=$GL --enable-features=VaapiVideoDecoder $* &> /dev/null &
+
