@@ -1,5 +1,7 @@
 ## nvidia-acceleration-on-ubuntu
 
+Enable hardware acceleration for NVIDIA graphics on Ubuntu Linux.
+
 * [What's included](#whats-included)
 * [Requirements and preparation](#requirements)
 * [Install VA-API drivers for NVIDIA graphics](#install-va-drivers)
