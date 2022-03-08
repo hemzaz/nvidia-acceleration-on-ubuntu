@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# The NVDEC-enabled VA drivers requires minimum libva version 2.8.0.
+# Ubuntu 20.04.4 (Focal) has libva 2.7.0.
+
 name=libva
 branch=v2.14-branch
 echo "building ${name} branch ${branch}"

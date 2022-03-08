@@ -53,7 +53,7 @@ fi
 #
 # Instead, update the dependencies list inside the package. Leave the
 # modified package inside the build directory, but do not install it.
-# The build script will install/uninstall the package automatically.
+# This build script will install/uninstall the package automatically.
 #
 # Skip modification steps if the package is already installed.
 
