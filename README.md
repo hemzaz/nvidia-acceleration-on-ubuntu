@@ -7,6 +7,7 @@ Enable hardware acceleration for NVIDIA graphics on Ubuntu Linux.
 * [Install VA-API drivers for NVIDIA graphics](#install-va-drivers)
 * [Install Chromium and derivatives](#install-chromium)
 * [Review Firefox settings](#firefox-settings)
+* [Watch HDR content](#watch-hdr-content)
 * [Epilogue](#epilogue)
 
 ### <a id="whats-included">What's included
@@ -17,6 +18,7 @@ This is an automation **how-to** for installing minimum dependencies and buildin
 build-all  Top-level script for running all scripts inside scripts folder.
 bin        Browser launch scripts to be copied to $HOME/bin/.
 desktop    Desktop files to be copied to $HOME/.local/share/applications/.
+extras     Complementary YouTube player for testing nvdec/nvenc.
 scripts    Contains build scripts for the VA-API drivers.
 install    Browser install scripts.
 uninstall  Browser uninstall scripts.
@@ -186,6 +188,10 @@ sudo bash install-firefox    # installs desktop-file and launch-script
 ```
 
 Re-launch Firefox, if running, to spawn via `~/bin/run-firefox` enabling hardware acceleration.
+
+### <a id="watch-hdr-content">Watch HDR content
+
+To play HDR content, see `youtube-play` inside the extras folder.
 
 ### <a id="epilogue">Epilogue
 

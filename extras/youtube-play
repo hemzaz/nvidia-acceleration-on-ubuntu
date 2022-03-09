@@ -1,0 +1,55 @@
+#!/bin/bash
+# A script for playing YouTube videos.
+
+url=$1
+
+# Display usage.
+if [ -z "$url" -o "$url" = "-h" -o "$url" = "--help" ]; then
+    # The YouTube URL is "Best 8k HDR of 2020 Dolby Vision".
+    echo "Usage:"
+    echo "  youtube-play URL -F, --list-formats"
+    echo "  youtube-play https://youtu.be/Jz9TdfXlTgs -F"
+    echo "  youtube-play https://youtu.be/Jz9TdfXlTgs --list-formats"
+    echo ""
+    echo "  youtube-play URL [VIDEO_FORMAT_CODE]"
+    echo "  youtube-play https://youtu.be/Jz9TdfXlTgs      # 720p (vp9/HDR preferred)"
+    echo "  youtube-play https://youtu.be/Jz9TdfXlTgs 136  # 720p avc1"
+    echo "  youtube-play https://youtu.be/Jz9TdfXlTgs 247  # 720p vp9"
+    echo "  youtube-play https://youtu.be/Jz9TdfXlTgs 698  # 720p av01 HDR"
+    echo "  youtube-play https://youtu.be/Jz9TdfXlTgs 334  # 720p vp9  HDR"
+    echo ""
+    echo "Interactive commands:"
+    echo "  f            toggle full screen"
+    echo "  p, SPACE     pause"
+    echo "  q, ESCAPE    quit"
+    echo ""
+    exit 1
+fi
+
+youtube_dl=~/.local/bin/yt-dlp
+
+# List all available formats of the requested video.
+if [ "$2" = "-F" -o "$2" = "--list-formats" ]; then
+    ${youtube_dl} --list-formats "$url"
+    exit 0
+fi
+
+# Set the format code, otherwise default to 135.
+if [ -n "$2" ]; then
+    video_format=$2
+else
+    #video_format="bestvideo[ext=mp4]"
+    video_format="334/698/247/136"   # 720p vp9/HDR preferred
+fi
+
+# The -g option returns the url to the video or audio stream.
+# The -f matroska option instructs FFmpeg to use the mkv container format.
+# The -sn -dn options refer to no subtitles and data encoding respectively.
+# The -ignore_unknown option refers to ignore unknown streams.
+
+ffmpeg -hide_banner -loglevel quiet -hwaccel nvdec \
+    -i $( ${youtube_dl} -g "$url" -f "$video_format" ) \
+    -i $( ${youtube_dl} -g "$url" -f "bestaudio[ext=webm]" ) \
+    -c:v hevc_nvenc -c:a copy -f matroska -sn -dn -ignore_unknown - \
+    | exec ffplay -hide_banner -
+
