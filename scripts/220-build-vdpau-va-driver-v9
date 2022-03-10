@@ -40,6 +40,7 @@ tar xzf ${name}.tar.gz
 if [[ -d ${name} ]]; then
     cd ${name}
 
+    # prefer pkgconfig, include, and lib from /usr/local
     export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
     export C_INCLUDE_PATH=/usr/local/include
     export LIBRARY_PATH=/usr/local/lib
