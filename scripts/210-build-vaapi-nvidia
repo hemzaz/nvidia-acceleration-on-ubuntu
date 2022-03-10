@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Exit if the graphics driver is not installed.
+# Exit if nvidia-settings is not installed.
 if [[ ! -f /usr/bin/nvidia-settings ]]; then
     echo "$0: package nvidia-settings is not installed, skipping..."
     exit 0
 fi
 
-# Exit silently if the the graphics driver does not meet requirement.
+# Exit if the the graphics driver does not meet requirement.
 version=`/usr/bin/nvidia-settings --version | grep version`
 version=${version##* } # extract the version string from the line
 version=`echo $version | cut -d. -f1-2` # want major and minor, not revision
@@ -112,6 +112,10 @@ fi
 if [[ -d ${name} ]]; then
     mkdir -p ${name}/build && cd ${name}/build
     install_dest=/usr/local/lib/dri/nvdec_drv_video.so
+
+    export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
+    export INCLUDE_PATH=/usr/local/include
+    export LIBRARY_PATH=/usr/local/lib
 
     meson setup .. --prefix=/usr/local --libdir=lib && ninja && \
     /usr/bin/printf "Installing nvidia_drv_video.so to $install_dest\n" && \
