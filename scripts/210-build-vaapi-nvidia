@@ -111,6 +111,7 @@ fi
 
 if [[ -d ${name} ]]; then
     mkdir -p ${name}/build && cd ${name}/build
+    mkdir -p /usr/local/lib/dri
     install_dest=/usr/local/lib/dri/nvdec_drv_video.so
 
     # prefer pkgconfig, include, and lib from /usr/local
