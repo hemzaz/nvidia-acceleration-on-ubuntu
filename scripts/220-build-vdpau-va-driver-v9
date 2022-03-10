@@ -41,7 +41,7 @@ if [[ -d ${name} ]]; then
     cd ${name}
 
     export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
-    export INCLUDE_PATH=/usr/local/include
+    export C_INCLUDE_PATH=/usr/local/include
     export LIBRARY_PATH=/usr/local/lib
 
     ./autogen.sh --prefix=/usr/local --enable-glx && \

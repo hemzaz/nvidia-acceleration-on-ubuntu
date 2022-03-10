@@ -114,7 +114,7 @@ if [[ -d ${name} ]]; then
     install_dest=/usr/local/lib/dri/nvdec_drv_video.so
 
     export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
-    export INCLUDE_PATH=/usr/local/include
+    export C_INCLUDE_PATH=/usr/local/include
     export LIBRARY_PATH=/usr/local/lib
 
     meson setup .. --prefix=/usr/local --libdir=lib && ninja && \
