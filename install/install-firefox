@@ -13,7 +13,7 @@ fi
 sudo id >/dev/null; [[ $? -ne 0 ]] && exit 2
 
 # Install package.
-dpkg --list firefox >/dev/null 2>&1
+dpkg-query -f '${binary:Package}\n' -W | grep -q '^firefox$'
 
 if [[ $? -eq 1 ]]; then
     set -x  # enable verbose output

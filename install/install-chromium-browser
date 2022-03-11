@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Install script for Google Chrome.
-# https://www.ubuntuupdates.org/ppa/google_chrome
+# Install script for Chromium Browser.
+# https://launchpad.net/~saiarcot895/+archive/ubuntu/chromium-beta
 
 basepath=$( realpath $( dirname "$0" )/../ )
 
@@ -14,10 +14,13 @@ fi
 sudo id >/dev/null; [[ $? -ne 0 ]] && exit 2
 
 # Install package.
-dpkg-query -f '${binary:Package}\n' -W | grep -q '^google-chrome-stable$'
+dpkg-query -f '${binary:Package}\n' -W | grep -q '^chromium-browser$'
 
 if [[ $? -eq 1 ]]; then
     set -x  # enable verbose output
+
+    # First uninstall Chromium, if it is installed, as it can conflict with chromium-browser.
+    sudo apt-get autoremove -y --purge chromium ungoogled-chromium
 
     # Install curl.
     dpkg --list curl apt-transport-https software-properties-common >/dev/null 2>&1
@@ -28,25 +31,20 @@ if [[ $? -eq 1 ]]; then
     fi
 
     # Add the public key and repository.
-    curl -s https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor | \
-      sudo tee /etc/apt/trusted.gpg.d/google-chrome.gpg >/dev/null
+    sudo add-apt-repository --yes --no-update ppa:saiarcot895/chromium-beta
 
-    listfile=/etc/apt/sources.list.d/google-chrome.list
-
-    sudo sh -c "echo \
-      'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' \
-      >> $listfile"
-
-    sudo sort -u $listfile -o $listfile
+    # Pin the PPA with a priority of 700.
+    printf "Package: *\nPin: release o=LP-PPA-saiarcot895-chromium-beta\nPin-Priority: 700\n" \
+        > /etc/apt/preferences.d/chromium-beta
 
     # Installation.
     sudo apt update -y
-    sudo apt install -y google-chrome-stable
+    sudo apt install -y chromium-browser
 
     set +x  # disable verbose output
 fi
 
-app=google-chrome
+app=chromium-browser
 
 # Install run script.
 if [[ ! -f ~/bin/run-${app} ]]; then

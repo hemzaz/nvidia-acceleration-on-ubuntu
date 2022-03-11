@@ -15,7 +15,7 @@ sudo id >/dev/null; [[ $? -ne 0 ]] && exit 2
 rm -fv ~/.local/share/applications/google-chrome.desktop
 
 # Uninstall package.
-dpkg --list google-chrome-stable >/dev/null 2>&1
+dpkg-query -f '${binary:Package}\n' -W | grep -q '^google-chrome-stable$'
 
 if [[ $? -eq 0 ]]; then
     set -x  # enable verbose output

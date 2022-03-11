@@ -15,7 +15,7 @@ sudo id >/dev/null; [[ $? -ne 0 ]] && exit 2
 rm -fv ~/.local/share/applications/chromium.desktop
 
 # Uninstall package.
-dpkg --list ungoogled-chromium >/dev/null 2>&1
+dpkg-query -f '${binary:Package}\n' -W | grep -q '^ungoogled-chromium$'
 
 if [[ $? -eq 0 ]]; then
     set -x  # enable verbose output

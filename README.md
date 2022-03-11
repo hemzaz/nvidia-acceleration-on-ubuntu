@@ -100,16 +100,17 @@ LIBVA_DRIVERS_PATH=/usr/local/lib/dri LIBVA_DRIVER_NAME=vdpau vainfo
 
 ### <a id="install-chromium">Install Chromium and derivatives
 
-The `install` folder includes scripts for installing various browsers. Each script installs a desktop-file and corresponding launch-script to your `~/.local/share/applications` and `~/bin` folders, respectively. This allows further customizations in launch-scripts without impacting the global environment. For example, Firefox uses the NVDEC-enabled VA driver whereas Google Chrome and Brave Browser use the VDPAU-enabled VA driver.
+The `install` folder includes scripts for installing various browsers. Each script installs a desktop-file and corresponding launch-script to your `~/.local/share/applications` and `~/bin` folders, respectively. This allows further customizations in launch-scripts without impacting the global environment. For example, Firefox uses the NVDEC-enabled VA driver whereas Brave-Browser, Chromium-Browser, and Google-Chrome use the VDPAU-enabled VA driver.
 
-Note: Video decoding using hardware acceleration does not work in Chromium.
+**Note:** Install either chromium or chromium-browser, but not both. Hardware video acceleration does not work in ungoogled-chromium.
 
 ```bash
 cd install
-sudo bash install-firefox   # described in the next section
-sudo bash install-chromium  # this installs ungoogled-chromium
-sudo bash install-google-chrome
 sudo bash install-brave-browser
+sudo bash install-chromium          # ungoogled-chromium
+sudo bash install-chromium-browser  # chromium-beta
+sudo bash install-firefox           # described in next section
+sudo bash install-google-chrome
 ```
 
 **desktop files**
@@ -119,7 +120,8 @@ The `Exec` lines refer to launch scripts residing in `$HOME/bin/`.
 ```bash
 $ ls -1 ~/.local/share/applications
 brave-browser.desktop
-chromium.desktop
+chromium.desktop (or)
+chromium-browser.desktop
 firefox.desktop
 google-chrome.desktop
 ```
@@ -131,7 +133,8 @@ Scripts set `LIBVA_DRIVER_NAME` to `nvdec` or `vdpau`, depending on the browser.
 ```bash
 $ ls -1 ~/bin
 run-brave-browser
-run-chromium
+run-chromium (or)
+run-chromium-browser
 run-firefox
 run-google-chrome
 ```
