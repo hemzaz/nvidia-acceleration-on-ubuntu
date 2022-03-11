@@ -102,14 +102,14 @@ LIBVA_DRIVERS_PATH=/usr/local/lib/dri LIBVA_DRIVER_NAME=vdpau vainfo
 
 The `install` folder includes scripts for installing various browsers. Each script installs a desktop-file and corresponding launch-script to your `~/.local/share/applications` and `~/bin` folders, respectively. This allows further customizations in launch-scripts without impacting the global environment. For example, Firefox uses the NVDEC-enabled VA driver whereas Brave-Browser, Chromium-Browser, and Google-Chrome use the VDPAU-enabled VA driver.
 
-**Note:** Install either chromium or chromium-browser, but not both. Hardware video acceleration does not work in ungoogled-chromium.
+**Notes:** For Chromium, choose Ungoogled-Chromium or Chromium-Beta but not both. Hardware video acceleration does not work in Ungoogled-Chromium. The naming of the scripts match the associated desktop files and binaries for consistency.
 
 ```bash
 cd install
 sudo bash install-brave-browser
-sudo bash install-chromium          # ungoogled-chromium
-sudo bash install-chromium-browser  # chromium-beta
-sudo bash install-firefox           # described in next section
+sudo bash install-chromium          # Installs Ungoogled-Chromium
+sudo bash install-chromium-browser  # Installs Chromium-Beta
+sudo bash install-firefox           # Installs desktop file/launch script
 sudo bash install-google-chrome
 ```
 
