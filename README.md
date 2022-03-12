@@ -100,16 +100,15 @@ LIBVA_DRIVERS_PATH=/usr/local/lib/dri LIBVA_DRIVER_NAME=vdpau vainfo
 
 ### <a id="install-chromium">Install Chromium and derivatives
 
-The `install` folder includes scripts for installing various browsers. Each script installs a desktop-file and corresponding launch-script to your `~/.local/share/applications` and `~/bin` folders, respectively. This allows further customizations in launch-scripts without impacting the global environment. For example, Firefox uses the NVDEC-enabled VA driver whereas Brave-Browser, Chromium-Browser, and Google-Chrome use the VDPAU-enabled VA driver.
+The `install` folder includes scripts for installing various browsers. Each script installs a desktop-file and corresponding launch-script to your `~/.local/share/applications` and `~/bin` folders, respectively. This allows further customizations in launch-scripts without impacting the global environment. For example, Firefox uses the NVDEC-enabled VA driver whereas Brave-Browser and Google-Chrome use the VDPAU-enabled VA driver.
 
-**Notes:** For Chromium, choose Ungoogled-Chromium or Chromium-Beta but not both. Hardware video acceleration does not work in Ungoogled-Chromium. Regarding the naming of the scripts, they match the associated desktop files and binaries for consistency.
+**Note:** Hardware video acceleration does not work in Ungoogled-Chromium.
 
 ```bash
 cd install
 sudo ./install-brave-browser
-sudo ./install-chromium          # Installs Ungoogled-Chromium
-sudo ./install-chromium-browser  # Installs Chromium-Beta with VA-API support
-sudo ./install-firefox           # Installs desktop file/launch script
+sudo ./install-chromium       # Installs Ungoogled-Chromium
+sudo ./install-firefox        # Installs desktop file/launch script
 sudo ./install-google-chrome
 ```
 
@@ -120,8 +119,7 @@ The `Exec` lines refer to launch scripts residing in `$HOME/bin/`.
 ```bash
 $ ls -1 ~/.local/share/applications
 brave-browser.desktop
-chromium.desktop (or)
-chromium-browser.desktop
+chromium.desktop
 firefox.desktop
 google-chrome.desktop
 ```
@@ -133,8 +131,7 @@ Scripts set `LIBVA_DRIVER_NAME` to `nvdec` or `vdpau`, depending on the browser.
 ```bash
 $ ls -1 ~/bin
 run-brave-browser
-run-chromium (or)
-run-chromium-browser
+run-chromium
 run-firefox
 run-google-chrome
 ```
