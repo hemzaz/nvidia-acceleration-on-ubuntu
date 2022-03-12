@@ -47,22 +47,23 @@ if [[ $? -eq 1 ]]; then
     sudo apt-get autoremove -y --purge chromium chromium-browser
 
     # Install curl.
-    dpkg --list curl apt-transport-https software-properties-common >/dev/null 2>&1
+    count=$( dpkg-query -f '${binary:Package}\n' -W | \
+        egrep -c '^(curl|apt-transport-https|software-properties-common)$' )
 
-    if [[ $? -eq 1 ]]; then
+    if [[ $count -ne 3 ]]; then
         sudo apt update -y
         sudo apt install -y curl apt-transport-https software-properties-common
     fi
 
     # Add the public key and repository.
     curl -s https://download.opensuse.org/repositories/home:/ungoogled_chromium/${osname}_${codename}/Release.key | \
-      gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/home-ungoogled_chromium.gpg >/dev/null
+        gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/home-ungoogled_chromium.gpg >/dev/null
 
     listfile=/etc/apt/sources.list.d/home-ungoogled_chromium.list
 
     sudo sh -c "echo \
-      'deb http://download.opensuse.org/repositories/home:/ungoogled_chromium/${osname}_${codename}/ /' \
-      >> $listfile"
+        'deb http://download.opensuse.org/repositories/home:/ungoogled_chromium/${osname}_${codename}/ /' \
+        >> $listfile"
 
     sudo sort -u $listfile -o $listfile
 

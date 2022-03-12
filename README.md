@@ -106,11 +106,11 @@ The `install` folder includes scripts for installing various browsers. Each scri
 
 ```bash
 cd install
-sudo bash install-brave-browser
-sudo bash install-chromium          # Installs Ungoogled-Chromium
-sudo bash install-chromium-browser  # Installs Chromium-Beta w/ VA-API support
-sudo bash install-firefox           # Installs desktop file/launch script
-sudo bash install-google-chrome
+sudo ./install-brave-browser
+sudo ./install-chromium          # Installs Ungoogled-Chromium
+sudo ./install-chromium-browser  # Installs Chromium-Beta with VA-API support
+sudo ./install-firefox           # Installs desktop file/launch script
+sudo ./install-google-chrome
 ```
 
 **desktop files**

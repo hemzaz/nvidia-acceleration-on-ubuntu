@@ -20,22 +20,23 @@ if [[ $? -eq 1 ]]; then
     set -x  # enable verbose output
 
     # Install curl.
-    dpkg --list curl apt-transport-https software-properties-common >/dev/null 2>&1
+    count=$( dpkg-query -f '${binary:Package}\n' -W | \
+        egrep -c '^(curl|apt-transport-https|software-properties-common)$' )
 
-    if [[ $? -eq 1 ]]; then
+    if [[ $count -ne 3 ]]; then
         sudo apt update -y
         sudo apt install -y curl apt-transport-https software-properties-common
     fi
 
     # Add the public key and repository.
     curl -s https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor | \
-      sudo tee /etc/apt/trusted.gpg.d/google-chrome.gpg >/dev/null
+        sudo tee /etc/apt/trusted.gpg.d/google-chrome.gpg >/dev/null
 
     listfile=/etc/apt/sources.list.d/google-chrome.list
 
     sudo sh -c "echo \
-      'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' \
-      >> $listfile"
+        'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' \
+        >> $listfile"
 
     sudo sort -u $listfile -o $listfile
 
