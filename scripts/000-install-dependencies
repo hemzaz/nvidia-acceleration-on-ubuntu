@@ -9,10 +9,11 @@ add_list=""
 count=0
 
 for package_name in \
-    build-essential curl git meson ninja-build \
+    build-essential curl git meson ninja-build vainfo \
     libavcodec-extra libdrm-dev libegl-dev libgl-dev libglx-dev \
     libgstreamer1.0-dev libgstreamer-plugins-bad1.0-0 libvdpau-dev \
-    libwayland-dev libxext-dev libxfixes-dev vainfo \
+    libwayland-dev libxcb-dri3-dev libxcb-present-dev \
+    libxext-dev libxfixes-dev \
 ;do
     if [[ ! ${installed_packages} =~ " ${package_name} " ]]; then
         add_list="${add_list} ${package_name}"

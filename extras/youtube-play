@@ -48,8 +48,8 @@ fi
 # The -ignore_unknown option refers to ignore unknown streams.
 
 ffmpeg -hide_banner -loglevel quiet -hwaccel nvdec \
-    -i $( ${youtube_dl} -g "$url" -f "$video_format" ) \
     -i $( ${youtube_dl} -g "$url" -f "bestaudio[ext=webm]" ) \
-    -c:v hevc_nvenc -c:a copy -f matroska -sn -dn -ignore_unknown - \
-    | exec ffplay -hide_banner -
+    -i $( ${youtube_dl} -g "$url" -f "$video_format" ) \
+    -c:v hevc_nvenc -preset llhq -c:a copy -f matroska \
+    -sn -dn -ignore_unknown - | exec ffplay -hide_banner -
 
