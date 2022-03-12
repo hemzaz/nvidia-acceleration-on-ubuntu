@@ -18,7 +18,7 @@ fi
 
 [[ $XDG_SESSION_TYPE == wayland ]] && GL=egl || GL=desktop
 
-exec "$EXECCMD" --window-size=1200,1050 \
+exec "$EXECCMD" --window-size=1211,1000 \
     --disable-features=UseChromeOSDirectVideoDecoder \
     --disable-gpu-driver-bug-workarounds --enable-zero-copy \
     --enable-accelerated-2d-canvas --enable-smooth-scrolling \
