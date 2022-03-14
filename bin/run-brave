@@ -31,5 +31,6 @@ exec "$EXECCMD" --window-size=1214,1000 \
     --disable-gpu-driver-bug-workarounds --enable-zero-copy \
     --enable-accelerated-2d-canvas --enable-smooth-scrolling \
     --enable-features=VaapiVideoDecoder,CanvasOopRasterization \
-    --use-gl=$GL --use-vulkan $* &> /dev/null &
+    --enable-gpu-rasterization --use-gl=$GL --use-vulkan \
+    $* &> /dev/null &
 
