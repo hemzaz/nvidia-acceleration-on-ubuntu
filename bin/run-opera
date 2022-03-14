@@ -1,0 +1,34 @@
+#!/bin/bash
+# Launch script for Opera.
+
+EXECCMD=/usr/bin/opera
+
+if [[ ! -x "$EXECCMD" ]]
+then
+    echo "ERROR: cannot access '$EXECCMD': No such executable"
+    exit 1
+fi
+
+if [[ -f /usr/bin/nvidia-settings && -f /usr/local/lib/dri/vdpau_drv_video.so ]]
+then
+    export LIBVA_DRIVERS_PATH=/usr/local/lib/dri:/usr/lib/x86_64-linux-gnu/dri
+    export LIBVA_DRIVER_NAME=vdpau
+fi
+
+[[ $XDG_SESSION_TYPE == wayland ]] && GL=egl || GL=desktop
+
+SCALE_FACTOR=$(
+    xrdb -query Xft.dpi | awk '/^Xft.dpi:/ {
+        printf("%.9f", $2 / 96)
+    }'
+)
+
+exec opera --window-size=1208,974 \
+    --high-dpi-support=1 --force-device-scale-factor=$SCALE_FACTOR \
+    --disable-features=UseChromeOSDirectVideoDecoder \
+    --disable-font-subpixel-positioning --disable-gpu-vsync \
+    --disable-gpu-driver-bug-workarounds --enable-zero-copy \
+    --enable-accelerated-2d-canvas --enable-smooth-scrolling \
+    --enable-features=VaapiVideoDecoder,CanvasOopRasterization \
+    --use-gl=$GL --use-vulkan $* &> /dev/null &
+

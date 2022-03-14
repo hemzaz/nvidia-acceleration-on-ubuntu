@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Uninstall script for Vivaldi.
-# https://www.ubuntuupdates.org/ppa/vivaldi
+# Uninstall script for Opera.
+# https://www.ubuntuupdates.org/ppa/opera
 
 if [[ "$USER" == "root" ]]; then
     echo "Please run the script as a normal user, exiting..."
@@ -12,20 +12,20 @@ fi
 sudo id >/dev/null; [[ $? -ne 0 ]] && exit 2
 
 # Remove desktop file.
-rm -fv ~/.local/share/applications/vivaldi-stable.desktop
+rm -fv ~/.local/share/applications/opera.desktop
 
 # Uninstall package.
-dpkg-query -f '${binary:Package}\n' -W | grep -q '^vivaldi-stable$'
+dpkg-query -f '${binary:Package}\n' -W | grep -q '^opera-stable$'
 
 if [[ $? -eq 0 ]]; then
     set -x  # enable verbose output
-    sudo apt autoremove -y --purge vivaldi-stable
+    sudo apt autoremove -y --purge opera-stable
     set +x  # disable verbose output
 fi
 
 # Remove apt files.
-sudo rm -fv /etc/apt/sources.list.d/vivaldi-stable.list
-sudo rm -fv /etc/apt/trusted.gpg.d/vivaldi.gpg
+sudo rm -fv /etc/apt/sources.list.d/opera-stable.list
+sudo rm -fv /etc/apt/trusted.gpg.d/opera.gpg
 
 echo "OK"
 

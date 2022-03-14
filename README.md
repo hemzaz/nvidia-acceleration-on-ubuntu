@@ -113,16 +113,17 @@ That will fetch, extract, and install the Microsoft core fonts Andale Mono, Aria
 
 ### <a id="install-chromium">Install Chromium and derivatives
 
-The `install` folder includes scripts for installing various browsers. Each script installs a desktop-file and corresponding launch-script to your `~/.local/share/applications` and `~/bin` folders, respectively. This allows further customizations inside launch-scripts without impacting the global environment. For example, Firefox uses the NVDEC-enabled VA driver whereas Brave, Google-Chrome, and Vivaldi use the VDPAU-enabled VA driver.
+The `install` folder includes scripts for installing various browsers. Each script installs a desktop-file and corresponding launch-script to your `~/.local/share/applications` and `~/bin` folders, respectively. This allows further customizations inside launch-scripts without impacting the global environment. For example, Firefox uses the NVDEC-enabled VA driver whereas Brave, Google-Chrome, Opera, and Vivaldi use the VDPAU-enabled VA driver.
 
 **Note:** Hardware video acceleration does not work in Ungoogled-Chromium.
 
 ```bash
 cd install
-sudo ./install-brave-browser
+sudo ./install-brave
 sudo ./install-chromium       # Installs Ungoogled-Chromium
 sudo ./install-firefox        # Installs desktop file/launch script
 sudo ./install-google-chrome
+sudo ./install-opera
 sudo ./install-vivaldi
 ```
 
@@ -136,6 +137,7 @@ brave-browser.desktop
 chromium.desktop
 firefox.desktop
 google-chrome.desktop
+opera.desktop
 vivaldi-stable.desktop
 ```
 
@@ -145,10 +147,11 @@ Scripts set `LIBVA_DRIVER_NAME` to `nvdec` or `vdpau`, depending on the browser.
 
 ```bash
 $ ls -1 ~/bin
-run-brave-browser
+run-brave
 run-chromium
 run-firefox
 run-google-chrome
+run-opera
 run-vivaldi
 ```
 

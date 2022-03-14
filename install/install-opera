@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Install script for Brave Browser.
-# https://brave.com/linux/
+# Install script for Vivaldi.
+# https://www.ubuntuupdates.org/ppa/opera
 
 basepath=$( realpath $( dirname "$0" )/../ )
 
@@ -14,7 +14,7 @@ fi
 sudo id >/dev/null; [[ $? -ne 0 ]] && exit 2
 
 # Install package.
-dpkg-query -f '${binary:Package}\n' -W | grep -q '^brave-browser$'
+dpkg-query -f '${binary:Package}\n' -W | grep -q '^opera$'
 
 if [[ $? -eq 1 ]]; then
     set -x  # enable verbose output
@@ -29,25 +29,25 @@ if [[ $? -eq 1 ]]; then
     fi
 
     # Add the public key and repository.
-    curl -s https://brave-browser-apt-release.s3.brave.com/brave-core.asc | gpg --dearmor | \
-        sudo tee /etc/apt/trusted.gpg.d/brave-browser-release.gpg >/dev/null
+    curl -s https://deb.opera.com/archive.key | gpg --dearmor | \
+        sudo tee /etc/apt/trusted.gpg.d/opera.gpg >/dev/null
 
-    listfile=/etc/apt/sources.list.d/brave-browser-release.list
+    listfile=/etc/apt/sources.list.d/opera-stable.list
 
     sudo sh -c "echo \
-        'deb [arch=amd64] https://brave-browser-apt-release.s3.brave.com/ stable main' \
+        'deb https://deb.opera.com/opera-stable/ stable non-free' \
         >> $listfile"
 
     sudo sort -u $listfile -o $listfile
 
     # Installation.
     sudo apt update -y
-    sudo apt install -y brave-browser
+    sudo apt install -y opera-stable
 
     set +x  # disable verbose output
 fi
 
-app=brave
+app=opera
 
 # Install run script.
 if [[ ! -f ~/bin/run-${app} ]]; then
@@ -56,9 +56,9 @@ if [[ ! -f ~/bin/run-${app} ]]; then
 fi
 
 # Install desktop file.
-if [[ ! -f ~/.local/share/applications/${app}-browser.desktop ]]; then
+if [[ ! -f ~/.local/share/applications/${app}.desktop ]]; then
     mkdir -p ~/.local/share/applications
-    cp -v "${basepath}/desktop/${app}-browser.desktop" ~/.local/share/applications/.
+    cp -v "${basepath}/desktop/${app}.desktop" ~/.local/share/applications/.
 fi
 
 echo "OK"
