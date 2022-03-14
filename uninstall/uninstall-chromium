@@ -18,6 +18,7 @@ rm -fv ~/.local/share/applications/chromium.desktop
 dpkg-query -f '${binary:Package}\n' -W | grep -q '^ungoogled-chromium$'
 
 if [[ $? -eq 0 ]]; then
+    rm -fr /usr/lib/chromium/WidevineCdm
     set -x  # enable verbose output
     sudo apt autoremove -y --purge ungoogled-chromium
     set +x  # disable verbose output

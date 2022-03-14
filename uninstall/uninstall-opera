@@ -18,6 +18,8 @@ rm -fv ~/.local/share/applications/opera.desktop
 dpkg-query -f '${binary:Package}\n' -W | grep -q '^opera-stable$'
 
 if [[ $? -eq 0 ]]; then
+    rm -fr /usr/lib/x86_64-linux-gnu/opera/lib_extra
+    rm -fr /usr/lib/x86_64-linux-gnu/opera/resources/widevine_config.json
     set -x  # enable verbose output
     sudo apt autoremove -y --purge opera-stable
     set +x  # disable verbose output
