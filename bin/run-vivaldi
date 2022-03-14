@@ -1,7 +1,7 @@
 #!/bin/bash
-# Launch script for Brave Browser.
+# Launch script for Vivaldi.
 
-EXECCMD=/usr/bin/brave-browser-stable
+EXECCMD=/usr/bin/vivaldi-stable
 
 if [[ ! -x "$EXECCMD" ]]
 then
@@ -19,12 +19,11 @@ fi
 
 SCALE_FACTOR=$(
     xrdb -query Xft.dpi | awk '/^Xft.dpi:/ {
-        dpi = $2; if (dpi % 2) dpi += 1
-        printf("%.9f", dpi / 96)
+        printf("%.9f", $2 / 96)
     }'
 )
 
-exec "$EXECCMD" --window-size=1214,1000 \
+exec "$EXECCMD" --window-size=1208,974 \
     --high-dpi-support=1 --force-device-scale-factor=$SCALE_FACTOR \
     --disable-features=UseChromeOSDirectVideoDecoder \
     --disable-font-subpixel-positioning --disable-gpu-vsync \

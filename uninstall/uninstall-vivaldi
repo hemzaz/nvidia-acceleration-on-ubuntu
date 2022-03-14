@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Uninstall script for Vivaldi.
+# https://www.ubuntuupdates.org/ppa/vivaldi
+
+if [[ "$USER" == "root" ]]; then
+    echo "Please run the script as a normal user, exiting..."
+    exit 1
+fi
+
+# Test sudo; exit if wrong password or terminated via Ctrl-C.
+sudo id >/dev/null; [[ $? -ne 0 ]] && exit 2
+
+# Remove desktop file.
+rm -fv ~/.local/share/applications/vivaldi-stable.desktop
+
+# Uninstall package.
+dpkg-query -f '${binary:Package}\n' -W | grep -q '^vivaldi-stable$'
+
+if [[ $? -eq 0 ]]; then
+    set -x  # enable verbose output
+    sudo apt autoremove -y --purge vivaldi-stable
+    set +x  # disable verbose output
+fi
+
+# Remove apt files.
+sudo rm -fv /etc/apt/sources.list.d/vivaldi.list
+sudo rm -fv /etc/apt/trusted.gpg.d/vivaldi.gpg
+
+echo "OK"
+

@@ -5,8 +5,10 @@ Enable hardware acceleration for NVIDIA graphics on Ubuntu Linux.
 * [What's included](#whats-included)
 * [Requirements and preparation](#requirements)
 * [Install VA-API drivers for NVIDIA graphics](#install-va-drivers)
+* [Install Microsoft core fonts](#install-mscorefonts)
 * [Install Chromium and derivatives](#install-chromium)
 * [Review Firefox settings](#firefox-settings)
+* [High DPI support](high-dpi-support)
 * [Watch HDR content](#watch-hdr-content)
 * [Epilogue](#epilogue)
 
@@ -26,7 +28,7 @@ uninstall  Browser uninstall scripts.
 
 ### <a id="requirements">Requirements and preparation
 
-This repo was created and tested for NVIDIA graphics on Ubuntu 20.04.4 (Focal) running Xorg (x11). The NVIDIA proprietary driver version 470.57 or higher is required via `Software & Updates` > `Additional Drivers`.
+This repo was created and tested for NVIDIA graphics on Ubuntu 20.04.4 (Focal) running Xorg (x11). The NVIDIA proprietary driver version 470.57 or higher is required via "Software & Updates" > "Additional Drivers".
 
 In addition, enable modeset for the `nvidia-drm` module. This is a requirement for the NVDEC-enabled VA driver.
 
@@ -98,9 +100,20 @@ LIBVA_DRIVERS_PATH=/usr/local/lib/dri LIBVA_DRIVER_NAME=nvdec vainfo
 LIBVA_DRIVERS_PATH=/usr/local/lib/dri LIBVA_DRIVER_NAME=vdpau vainfo
 ```
 
+### <a id="install-mscorefonts">Install Microsoft core fonts
+
+A fresh Ubuntu installation will not have the Microsoft fonts Arial and Times New Roman installed. Fortunately, there is an installer package to simplify the process. It requires accepting a couple license agreements. So do this from the terminal.
+
+```bash
+sudo apt update
+sudo apt -y ttf-mscorefonts-installer
+```
+
+That will fetch, extract, and install the Microsoft core fonts Andale Mono, Arial, Arial Black, Comic Sans MS, Courier New, Georgia, Impact, Times New Roman, Trebuchet MS, and Verdana. In Firefox, go to "Settings" > "Fonts and Colors" > "Advanced..." and change the Serif and Sans-serif fonts to "Times New Roman" and "Arial" respectively, if you want to match the fonts used by Google Chrome.
+
 ### <a id="install-chromium">Install Chromium and derivatives
 
-The `install` folder includes scripts for installing various browsers. Each script installs a desktop-file and corresponding launch-script to your `~/.local/share/applications` and `~/bin` folders, respectively. This allows further customizations in launch-scripts without impacting the global environment. For example, Firefox uses the NVDEC-enabled VA driver whereas Brave-Browser and Google-Chrome use the VDPAU-enabled VA driver.
+The `install` folder includes scripts for installing various browsers. Each script installs a desktop-file and corresponding launch-script to your `~/.local/share/applications` and `~/bin` folders, respectively. This allows further customizations inside launch-scripts without impacting the global environment. For example, Firefox uses the NVDEC-enabled VA driver whereas Brave, Google-Chrome, and Vivaldi use the VDPAU-enabled VA driver.
 
 **Note:** Hardware video acceleration does not work in Ungoogled-Chromium.
 
@@ -110,6 +123,7 @@ sudo ./install-brave-browser
 sudo ./install-chromium       # Installs Ungoogled-Chromium
 sudo ./install-firefox        # Installs desktop file/launch script
 sudo ./install-google-chrome
+sudo ./install-vivaldi
 ```
 
 **desktop files**
@@ -122,6 +136,7 @@ brave-browser.desktop
 chromium.desktop
 firefox.desktop
 google-chrome.desktop
+vivaldi-stable.desktop
 ```
 
 **launch scripts**
@@ -134,11 +149,12 @@ run-brave-browser
 run-chromium
 run-firefox
 run-google-chrome
+run-vivaldi
 ```
 
 ### <a id="firefox-settings">Review Firefox settings
 
-Below are the minimum settings applied via `about:config` to enable hardware acceleration. The `media.rdd-ffmpeg.enable` flag must be enabled for h264ify or enhanced-h264ify to work along with VP9. Basically, this allows you to choose to play videos via the h264ify extension or VP9 media by disabling h264ify and enjoy beyond 1080P playback.
+Below are the minimum settings applied via "about:config" to enable hardware acceleration. The `media.rdd-ffmpeg.enable` flag must be enabled for h264ify or enhanced-h264ify to work along with VP9. Basically, this allows you to choose to play videos via the h264ify extension or VP9 media by disabling h264ify and enjoy beyond 1080P playback.
 
 ```text
 gfx.canvas.azure.accelerated                   true
@@ -189,6 +205,24 @@ sudo bash install-firefox    # installs desktop-file and launch-script
 
 Re-launch Firefox, if running, to spawn via `~/bin/run-firefox` enabling hardware acceleration.
 
+### <a id="high-dpi-support">High DPI Support
+
+First, run gnome-tweaks and adjust "Fonts" > "Scaling Factor". Enter or press the `+` or `-` buttons until reaching the screen DPI divided by 96. For example, a 109 DPI screen divided by 96 equals 1.14 rounded to 2 decimal places. That will update the `Xft.dpi` value, preferably matching the screen DPI. Subsequently, adjust the font sizes for "Interface Text", "Document Text", "Monospace Text", and "Legacy Window Titles".
+
+```bash
+sudo apt update                    # as super user
+sudo apt -y install gnome-tweaks
+
+gnome-tweaks                       # as normal user
+xrdb -query                        # Xft.dpi: 109
+```
+
+The launch scripts for Chromium-based browsers set the scale-factor automatically, based on the `Xft.dpi` value. For Firefox, go to "about:config" and change the `layout.css.devPixelsPerPx` value manually. Start with 1.0 and increase-decrease in 0.01 increments or enter the value for `Xft.dpi` divided by 96. For example, 109 DPI / 96 = 1.135416667.
+
+```text
+layout.css.devPixelsPerPx          1.135416667
+```
+
 ### <a id="watch-hdr-content">Watch HDR content
 
 To play HDR content, see `youtube-play` inside the extras folder.
@@ -201,7 +235,7 @@ Running install again will not overwrite or remove the associated launch script 
 
 Some things are still broken in Wayland using the NVIDIA proprietary driver; i.e. nvidia-settings and VDPAU-enabled VA driver not working. Please **do not** send PRs regarding Wayland.
 
-Updates are automatic, by default, in `Software & Updates` > `Updates`. Or check manually.
+Updates are automatic, by default, in "Software & Updates" > "Updates". Or check manually.
 
 ```bash
 sudo apt update

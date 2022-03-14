@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Install script for Google Chrome.
-# https://www.ubuntuupdates.org/ppa/google_chrome
+# Install script for Vivaldi.
+# https://www.ubuntuupdates.org/ppa/vivaldi
 
 basepath=$( realpath $( dirname "$0" )/../ )
 
@@ -14,7 +14,7 @@ fi
 sudo id >/dev/null; [[ $? -ne 0 ]] && exit 2
 
 # Install package.
-dpkg-query -f '${binary:Package}\n' -W | grep -q '^google-chrome-stable$'
+dpkg-query -f '${binary:Package}\n' -W | grep -q '^vivaldi-stable$'
 
 if [[ $? -eq 1 ]]; then
     set -x  # enable verbose output
@@ -29,25 +29,25 @@ if [[ $? -eq 1 ]]; then
     fi
 
     # Add the public key and repository.
-    curl -s https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor | \
-        sudo tee /etc/apt/trusted.gpg.d/google-chrome.gpg >/dev/null
+    curl -s https://repo.vivaldi.com/stable/linux_signing_key.pub | gpg --dearmor | \
+        sudo tee /etc/apt/trusted.gpg.d/vivaldi.gpg >/dev/null
 
-    listfile=/etc/apt/sources.list.d/google-chrome.list
+    listfile=/etc/apt/sources.list.d/vivaldi.list
 
     sudo sh -c "echo \
-        'deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main' \
+        'deb [arch=amd64] https://repo.vivaldi.com/stable/deb/ stable main' \
         >> $listfile"
 
     sudo sort -u $listfile -o $listfile
 
     # Installation.
     sudo apt update -y
-    sudo apt install -y google-chrome-stable
+    sudo apt install -y vivaldi-stable
 
     set +x  # disable verbose output
 fi
 
-app=google-chrome
+app=vivaldi
 
 # Install run script.
 if [[ ! -f ~/bin/run-${app} ]]; then
@@ -56,9 +56,9 @@ if [[ ! -f ~/bin/run-${app} ]]; then
 fi
 
 # Install desktop file.
-if [[ ! -f ~/.local/share/applications/${app}.desktop ]]; then
+if [[ ! -f ~/.local/share/applications/${app}-stable.desktop ]]; then
     mkdir -p ~/.local/share/applications
-    cp -v "${basepath}/desktop/${app}.desktop" ~/.local/share/applications/.
+    cp -v "${basepath}/desktop/${app}-stable.desktop" ~/.local/share/applications/.
 fi
 
 echo "OK"
