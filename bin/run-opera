@@ -23,7 +23,7 @@ SCALE_FACTOR=$(
     }'
 )
 
-exec opera --window-size=1208,974 \
+exec opera --window-size=1212,950 \
     --high-dpi-support=1 --force-device-scale-factor=$SCALE_FACTOR \
     --disable-features=UseChromeOSDirectVideoDecoder \
     --disable-font-subpixel-positioning --disable-gpu-vsync \
