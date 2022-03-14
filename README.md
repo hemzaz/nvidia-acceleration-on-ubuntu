@@ -8,7 +8,7 @@ Enable hardware acceleration for NVIDIA graphics on Ubuntu Linux.
 * [Install Microsoft core fonts](#install-mscorefonts)
 * [Install Chromium and derivatives](#install-chromium)
 * [Review Firefox settings](#firefox-settings)
-* [High DPI support](high-dpi-support)
+* [High DPI support](#high-dpi-support)
 * [Watch HDR content](#watch-hdr-content)
 * [Epilogue](#epilogue)
 
