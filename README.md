@@ -109,7 +109,7 @@ sudo apt update
 sudo apt -y ttf-mscorefonts-installer
 ```
 
-That will fetch, extract, and install the Microsoft core fonts Andale Mono, Arial, Arial Black, Comic Sans MS, Courier New, Georgia, Impact, Times New Roman, Trebuchet MS, and Verdana. In Firefox, go to "Settings" > "Fonts and Colors" > "Advanced..." and change the Serif and Sans-serif fonts to "Times New Roman" and "Arial" respectively, if you want to match the fonts used by Google Chrome.
+That will fetch, extract, and install the Microsoft core fonts Andale Mono, Arial, Arial Black, Comic Sans MS, Courier New, Georgia, Impact, Times New Roman, Trebuchet MS, and Verdana. In Firefox, if you want to match the fonts used by Google Chrome, go to "Settings" > "Fonts and Colors" > "Advanced..." and change the Serif and Sans-serif fonts to "Times New Roman" and "Arial" respectively.
 
 ### <a id="install-chromium">Install Chromium and derivatives
 
@@ -207,7 +207,7 @@ Re-launch Firefox, if running, to spawn via `~/bin/run-firefox` enabling hardwar
 
 ### <a id="high-dpi-support">High DPI Support
 
-First, run gnome-tweaks and adjust "Fonts" > "Scaling Factor". Enter or press the `+` or `-` buttons until reaching the screen DPI divided by 96. For example, a 109 DPI screen divided by 96 equals 1.14 rounded to 2 decimal places. That will update the `Xft.dpi` value, preferably matching the screen DPI. Subsequently, adjust the font sizes for "Interface Text", "Document Text", "Monospace Text", and "Legacy Window Titles".
+First, run gnome-tweaks and adjust "Fonts" > "Scaling Factor". Enter a floating value or press the `+` or `-` buttons until reaching the screen DPI divided by 96. For example, a 109 DPI screen divided by 96 equals 1.14 for the scaling factor rounded to 2 decimal places. That will update the `Xft.dpi` value, preferably matching the screen DPI. Subsequently, adjust the font size to 11 or 10 for "Interface Text", "Document Text", and "Legacy Window Titles"; size 13 or 12 for Monospace Text.
 
 ```bash
 sudo apt update                    # as super user
