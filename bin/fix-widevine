@@ -16,8 +16,8 @@ GOOGLE_DIR="/opt/google/chrome"
 OPERA_DIR="/usr/lib/x86_64-linux-gnu/opera"
 OPERA_LIB_EXTRA="$OPERA_DIR/lib_extra"
 
-if [[ ! -d "$GOOGLE_DIR/WidevineCdm" ]]; then
-    echo "Cannot open '$GOOGLE_DIR/WidevineCdm' (No such directory)"
+if [[ ! -f "$GOOGLE_DIR/WidevineCdm/manifest.json" ]]; then
+    echo "Cannot open '$GOOGLE_DIR/WidevineCdm/manifest.json' (No such file)"
     exit 1
 fi
 
@@ -37,14 +37,13 @@ else
 fi
 
 # Nothing to do.
-if [[ -z "$CHROMIUM_DIR" || -z "$OPERA_DIR" ]]; then
+if [[ -z "$CHROMIUM_DIR" && -z "$OPERA_DIR" ]]; then
     echo "Neither Chromium or Opera is installed, exiting..."
     exit 1
 fi
 
-FFMPEG_SRC_REL="https://api.github.com/repos/iteufel/nwjs-ffmpeg-prebuilt/releases"
-
-FFMPEG_ALT_REL="https://api.github.com/repos/Ld-Hagen/fix-opera-linux-ffmpeg-widevine/releases"
+FFMPEG_SRC_REL="https://github.com/iteufel/nwjs-ffmpeg-prebuilt/releases"
+FFMPEG_ALT_REL="https://github.com/Ld-Hagen/fix-opera-linux-ffmpeg-widevine/releases"
 
 if [[ -n "$OPERA_DIR" ]]; then
     echo "# checking requirements"
@@ -56,46 +55,60 @@ if [[ -n "$OPERA_DIR" ]]; then
 
     echo "# retrieving version info"
     FFMPEG_SRC_URL=$(
-        wget -qO - $FFMPEG_SRC_REL | \
-        awk -F'"' '/browser_download_url.*-linux-x64/ { print $4; exit }'
+        wget -qO- $FFMPEG_SRC_REL | awk -F\" '/-linux-x64.zip/ { print $2; exit }'
     )
     FFMPEG_ALT_URL=$(
-        wget -qO - $FFMPEG_ALT_REL | \
-        awk -F'"' '/browser_download_url.*-linux-x64/ { print $4; exit }'
+        wget -qO- $FFMPEG_ALT_REL | awk -F\" '/-linux-x64.zip/ { print $2; exit }'
     )
 
     echo "# comparing versions"
     if [[ $(basename $FFMPEG_SRC_URL) > $(basename $FFMPEG_ALT_URL) ]]; then
-        FFMPEG_URL=$FFMPEG_SRC_URL
+        FFMPEG_URL="https://github.com$FFMPEG_SRC_URL"
     else
-        FFMPEG_URL=$FFMPEG_ALT_URL
+        FFMPEG_URL="https://github.com$FFMPEG_ALT_URL"
     fi
 
-    echo "# downloading libffmpeg-$(basename $FFMPEG_URL)"
-    TEMP_DIR="/tmp/fix-ffmpeg-$$" ; mkdir -p "$TEMP_DIR"
-    wget -q --show-progress "$FFMPEG_URL" -O "$TEMP_DIR/libffmpeg.zip"
+    VERSION_URL=$(basename $FFMPEG_URL | sed -e 's/-linux-x64\.zip$//')
+    VERSION_LOC=$(head -1 "$OPERA_LIB_EXTRA/libffmpeg.ver" 2>/dev/null)
+    
+    if [[ "$VERSION_URL" == "$VERSION_LOC" ]]; then
+        echo "# libffmpeg-$VERSION_URL current"
+    else
+        echo "# downloading libffmpeg-$(basename $FFMPEG_URL)"
+        TEMP_DIR="/tmp/fix-ffmpeg-$$" ; mkdir -p "$TEMP_DIR"
+        wget -q --show-progress "$FFMPEG_URL" -O "$TEMP_DIR/libffmpeg.zip"
 
-    if [[ $? -eq 0 ]]; then
-        pushd "$TEMP_DIR" >/dev/null
-        unzip libffmpeg.zip
-        echo "# copying libffmpeg.so to destination"
-        cp -fpv libffmpeg.so "$OPERA_LIB_EXTRA/libffmpeg.so"
-        popd >/dev/null
+        if [[ $? -eq 0 ]]; then
+            pushd "$TEMP_DIR" >/dev/null
+            unzip libffmpeg.zip
+
+            echo "# copying libffmpeg.so to destination"
+            echo "$VERSION_URL" > "$OPERA_LIB_EXTRA/libffmpeg.ver"
+            diff libffmpeg.so "$OPERA_LIB_EXTRA/libffmpeg.so" >/dev/null 2>&1
+            [[ $? -ne 0 ]] && cp -fpv libffmpeg.so "$OPERA_LIB_EXTRA/libffmpeg.so"
+
+            popd >/dev/null
+        fi
     fi
 
     rm -rf "$TEMP_DIR"
 fi
 
-echo "# making symbolic link(s)"
-if [[ -n "$CHROMIUM_DIR" ]]; then
+if [[ -n "$CHROMIUM_DIR" && ! -L "$CHROMIUM_DIR/WidevineCdm" ]]; then
+    echo "# making WidevineCdm link for Chromium"
+    rm -fr "$CHROMIUM_DIR/WidevineCdm"
     ln -sfv "$GOOGLE_DIR/WidevineCdm" "$CHROMIUM_DIR/WidevineCdm"
 fi
 
-if [[ -n "$OPERA_DIR" ]]; then
-    OPERA_WIDEVINE_CFG="$OPERA_DIR/resources/widevine_config.json"
+if [[ -n "$OPERA_DIR" && ! -L "$OPERA_LIB_EXTRA/WidevineCdm" ]]; then
+    echo "# making WidevineCdm link for Opera"
     rm -fr "$OPERA_LIB_EXTRA/WidevineCdm"
     ln -sfv "$GOOGLE_DIR/WidevineCdm" "$OPERA_LIB_EXTRA/WidevineCdm"
+fi
 
+OPERA_WIDEVINE_CFG="$OPERA_DIR/resources/widevine_config.json"
+
+if [[ -n "$OPERA_DIR" && ! -f "$OPERA_WIDEVINE_CFG" ]]; then
     echo "# making config $OPERA_WIDEVINE_CFG"
     printf "[\n  {\n    \"preload\": \"$OPERA_LIB_EXTRA/WidevineCdm\"\n  }\n]\n" \
         > "$OPERA_WIDEVINE_CFG"
