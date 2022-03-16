@@ -103,14 +103,17 @@ LIBVA_DRIVERS_PATH=/usr/local/lib/dri LIBVA_DRIVER_NAME=vdpau vainfo
 
 ### <a id="install-mscorefonts">Install Microsoft core fonts
 
-A fresh Ubuntu installation will not have the Microsoft fonts Arial and Times New Roman installed. Fortunately, there is an installer package to simplify the process. It requires accepting a couple license agreements. So do this from the terminal.
+A fresh Ubuntu installation will not have the Microsoft fonts Arial and Times New Roman installed. Fortunately, there is an installer package to simplify the process. It requires accepting a couple license agreements. So do this from the terminal. The core font installer does not include the Calibri and Cambria fonts, which are the default fonts in the latest version of Microsoft Office. Google developed Carlito and Caladea fonts that are metric-compatible with the proprietary fonts.
 
 ```bash
 sudo apt update
-sudo apt -y ttf-mscorefonts-installer
+sudo apt install -y ttf-mscorefonts-installer
+sudo apt install -y fonts-crosextra-carlito fonts-crosextra-caladea
 ```
 
-That will fetch, extract, and install the Microsoft core fonts Andale Mono, Arial, Arial Black, Comic Sans MS, Courier New, Georgia, Impact, Times New Roman, Trebuchet MS, and Verdana. In Firefox, if you want to match the fonts used by Google Chrome, go to "Settings" > "Fonts and Colors" > "Advanced..." and change the Serif and Sans-serif fonts to "Times New Roman" and "Arial" respectively.
+That will fetch, extract, and install the Microsoft core fonts Andale Mono, Arial, Arial Black, Comic Sans MS, Courier New, Georgia, Impact, Times New Roman, Trebuchet MS, and Verdana; including Google fonts Carlito and Caladea.
+
+After you log out and log in or relaunch the application these fonts will be available in your system. In Firefox, if you want to match the fonts used by Google Chrome, go to "Settings" > "Fonts and Colors" > "Advanced..." and change the Serif and Sans-serif fonts to "Times New Roman" and "Arial" respectively.
 
 ### <a id="install-chromium">Install Chromium and derivatives
 
@@ -215,7 +218,7 @@ First, run gnome-tweaks and adjust "Fonts" > "Scaling Factor". Enter a floating 
 
 ```bash
 sudo apt update                    # as super user
-sudo apt -y install gnome-tweaks
+sudo apt install -y gnome-tweaks
 
 gnome-tweaks                       # as normal user
 xrdb -query                        # Xft.dpi: 109
