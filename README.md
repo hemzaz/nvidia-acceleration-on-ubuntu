@@ -265,11 +265,13 @@ gsettings set org.gnome.mutter experimental-features '["kms-modifiers"]'
 
 Reboot the machine.
 
-When prompted for your password, click on the gears icon in the lower right hand corner of the logon screen and select "Gnome on Wayland". Launch Firefox and check if the context-menu is working by right-clicking in the URL field. If the popup-menu is not sticking, then go to `about:config` and try decreasing or increasing `layout.css.devPixelsPerPx` (i.e. 1.0, 1.12, 1.25, 1.5, 2.0).
+When prompted for your password, click on the gears icon in the lower right hand corner of the login screen and select "Gnome on Wayland". Launch Firefox and check if the context-menu is working by right-clicking in the URL field. If the popup-menu is not sticking, then go to `about:config` and try decreasing or increasing `layout.css.devPixelsPerPx` (i.e. 1.0, 1.12, 1.25, 1.5, 2.0).
 
 ```text
 layout.css.devPixelsPerPx          1.12
 ```
+
+To revert back to `x11`, log out and select "Gnome" on the login screen.
 
 ### <a id="watch-hdr-content">Watch HDR content
 
