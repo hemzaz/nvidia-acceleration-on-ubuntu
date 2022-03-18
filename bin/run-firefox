@@ -11,12 +11,14 @@ fi
 
 if [[ -f /usr/bin/nvidia-settings && -f /usr/local/lib/dri/nvdec_drv_video.so ]]
 then
+    # The NVDEC-backend driver works in x11 and Wayland.
     export LIBVA_DRIVERS_PATH=/usr/local/lib/dri:/usr/lib/x86_64-linux-gnu/dri
     export LIBVA_DRIVER_NAME=nvdec
 fi
 
 if [[ $XDG_SESSION_TYPE == wayland ]]
 then
+    export EGL_PLATFORM=wayland
     export MOZ_ENABLE_WAYLAND=1
 else
     export MOZ_DISABLE_WAYLAND=1

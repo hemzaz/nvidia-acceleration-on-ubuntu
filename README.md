@@ -9,6 +9,7 @@ Enable hardware acceleration for NVIDIA graphics on Ubuntu Linux.
 * [Install Chromium and derivatives](#install-chromium)
 * [Review Firefox settings](#firefox-settings)
 * [High DPI support](#high-dpi-support)
+* [Enable Wayland Display Server](#enable-wayland)
 * [Watch HDR content](#watch-hdr-content)
 * [Epilogue](#epilogue)
 * [Caveat](#caveat)
@@ -228,6 +229,46 @@ The launch scripts for Chromium-based browsers set the scale-factor automaticall
 
 ```text
 layout.css.devPixelsPerPx          1.135416667
+```
+
+### <a id="enable-wayland">Enable Wayland Display Server
+
+This requires NVIDIA driver 470.x, minimally. Ensure dependencies are installed.
+
+```bash
+cat /proc/driver/nvidia/version
+
+sudo apt update
+sudo apt install -y xwayland libegl1 libwayland-egl1 libwayland-dev
+sudo apt install -y libnvidia-egl-wayland1 libnvidia-egl-wayland-dev
+sudo apt install -y libva-wayland2 libxcb-dri3-dev libxcb-present-dev
+```
+
+Edit the `/etc/gdm3/custom.conf` file and comment out the line `WaylandEnable=false`.
+
+```text
+#WaylandEnable=false
+```
+
+Mask the system udev rule responsible for disabling Wayland in GNOME Display Manager.
+
+```bash
+sudo ln -sf /dev/null /etc/udev/rules.d/61-gdm.rules
+```
+
+Mutter, when used as a Wayland display server, requires the experimental feature `kms-modifiers` through `gsettings`.
+
+```bash
+gsettings get org.gnome.mutter experimental-features
+gsettings set org.gnome.mutter experimental-features '["kms-modifiers"]'
+```
+
+Reboot the machine.
+
+When prompted for your password, click on the gears icon in the lower right hand corner of the logon screen and select "Gnome on Wayland". Launch Firefox and check if the context-menu is working by right-clicking in the URL field. If the popup-menu is not sticking, then go to `about:config` and try decreasing or increasing `layout.css.devPixelsPerPx` (i.e. 1.0, 1.12, 1.25, 1.5, 2.0).
+
+```text
+layout.css.devPixelsPerPx          1.12
 ```
 
 ### <a id="watch-hdr-content">Watch HDR content
