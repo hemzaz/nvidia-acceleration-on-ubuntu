@@ -12,7 +12,8 @@ Enable hardware acceleration for NVIDIA graphics on Ubuntu Linux.
 * [Enable Wayland Display Server](#enable-wayland)
 * [Watch HDR content](#watch-hdr-content)
 * [Epilogue](#epilogue)
-* [Caveat](#caveat)
+
+Thank you, @xtknight for the initial [VP9](https://github.com/xtknight/vdpau-va-driver-vp9) acceleration bits. Likewise and thank you, @xuanruiqi for the [VP9-update](https://github.com/xuanruiqi/vdpau-va-driver-vp9) to include additional fixes. Finally, thank you @elFarto for the [NVDEC-enabled](https://github.com/elFarto/nvidia-vaapi-driver) driver. Both drivers can co-exist with few tweaks to the installation process.
 
 ### <a id="whats-included">What's included
 
@@ -294,11 +295,7 @@ sudo apt update
 sudo apt upgrade
 ```
 
-Thank you, @xtknight for the initial [VP9](https://github.com/xtknight/vdpau-va-driver-vp9) acceleration bits. Likewise and thank you, @xuanruiqi for the [VP9-update](https://github.com/xuanruiqi/vdpau-va-driver-vp9) to include additional fixes. Finally, thank you @elFarto for the [NVDEC-enabled](https://github.com/elFarto/nvidia-vaapi-driver) driver. Both drivers co-exist with few tweaks to the installation process.
-
-### <a id="caveat">Caveat
-
-Widevine does not work in Chromium (Ungoogled-Chrome) and Opera. Run the `fix-widevine` script found inside the `bin` folder. It requires Google Chrome on the system as the script makes a symbolic link to Google's `WidevineCdm` folder. The fix for opera is more involved, requiring `libffmpeg.so` from the web. Periodically run the script whenever Opera is updated. Update WidevineCdm via Google Chrome, where it resides.
+Widevine may not work in Chromium (Ungoogled-Chrome) and Opera. Run the `fix-widevine` script found inside the `bin` folder. It requires Google Chrome on the system as the script makes a symbolic link to Google's `WidevineCdm` folder. The fix for opera is more involved, requiring `libffmpeg.so` from the web. Periodically run the script whenever Opera is updated. Update WidevineCdm via Google Chrome, where it resides.
 
 ```bash
 sudo ./fix-widevine   # as super user
