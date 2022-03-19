@@ -51,6 +51,8 @@ sudo apt install -y nvidia-settings
 
 Optionally enable `ForceCompositionPipeline` for a smoother desktop experience (no more stutters), especially when moving-resizing a terminal window while playing a video. This can be done at the device level; for example `/etc/X11/xorg.conf.d/nvidia-device.conf`.
 
+**Note:** Enable composition pipeline only if you experience stutters.
+
 ```bash
 sudo mkdir -p /etc/X11/xorg.conf.d
 
