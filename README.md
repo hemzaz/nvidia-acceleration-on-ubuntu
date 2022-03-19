@@ -233,7 +233,7 @@ The launch scripts for Chromium-based browsers set the scale-factor automaticall
 layout.css.devPixelsPerPx          1.135416667
 ```
 
-Firefox context-menus may not work in Wayland. Ensure the context-menu is working by right-clicking in the URL field. If the popup-menu is not sticking, then go to `about:config` and try decreasing or increasing the value (i.e. 1.0, 1.12, 1.25, 1.5, 2.0).
+Firefox context-menus may not work in Wayland. Ensure the context-menu is working by right-clicking in the URL field. If the popup-menu is not sticking, then try decreasing or increasing the value (i.e. 1.0, 1.12, 1.25, 1.5, 2.0).
 
 ```text
 layout.css.devPixelsPerPx          1.12
