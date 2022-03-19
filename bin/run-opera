@@ -10,8 +10,9 @@ then
 fi
 
 if [[ $XDG_SESSION_TYPE == wayland ]]
-    GL=egl
 then
+    GL=egl
+else
     GL=desktop
     if [[ -f /usr/bin/nvidia-settings && -f /usr/local/lib/dri/vdpau_drv_video.so ]]
     then
