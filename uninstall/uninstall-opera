@@ -26,6 +26,9 @@ if [[ $? -eq 0 ]]; then
 fi
 
 # Remove apt files.
+sudo rm -fv /etc/apt/preferences.d/chromium-team-beta.pref
+sudo rm -fv /etc/apt/sources.list.d/chromium-team-beta.list
+sudo rm -fv /etc/apt/trusted.gpg.d/chromium-team.gpg
 sudo rm -fv /etc/apt/sources.list.d/opera-stable.list
 sudo rm -fv /etc/apt/trusted.gpg.d/opera.gpg
 
