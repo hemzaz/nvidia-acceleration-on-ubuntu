@@ -228,9 +228,9 @@ gnome-tweaks                       # as normal user
 xrdb -query                        # Xft.dpi: 109
 ```
 
-The launch scripts for Chromium-based browsers set the scale-factor automatically, based on the `Xft.dpi` value. For Firefox, go to "about:config" and change the `layout.css.devPixelsPerPx` value manually. Start with 1.0 and increase-decrease in 0.01 increments or enter the value for `Xft.dpi` divided by 96. For example, 109 DPI / 96 = 1.135416667.
+The launch scripts for Chromium-based browsers set the scale-factor automatically, based on the `Xft.dpi` value. You may find that the right edge of the window is not straight all the way to the top. Simply edit the `~/bin/run-*` launch script and adjust the width in 2 pixels increment until a straight edge.
 
-You may find that the right edge of the window is not straight all the way to the top. Simply edit the `~/bin/run-*` launch script and adjust the width in 2 pixels increment until a straight edge.
+For Firefox, go to "about:config" and change the `layout.css.devPixelsPerPx` value manually. Start with 1.0 and increase-decrease in 0.01 increments or enter the value for `Xft.dpi` divided by 96. For example, 109 DPI / 96 = 1.135416667.
 
 ```text
 layout.css.devPixelsPerPx          1.135416667
