@@ -63,8 +63,10 @@ if [[ $? -eq 1 ]]; then
     sudo apt install -y opera-stable
 
     # Make a symbolic link to libffmpeg.so inside lib_extra.
-    sudo mkdir -p /usr/lib/x86_64-linux-gnu/opera/lib_extra
-    sudo ln -sf /usr/lib/chromium-browser/libffmpeg.so /usr/lib/x86_64-linux-gnu/opera/lib_extra/libffmpeg.so
+    if [[ -f /usr/lib/chromium-browser/libffmpeg.so ]]; then
+        sudo mkdir -p /usr/lib/x86_64-linux-gnu/opera/lib_extra
+        sudo ln -sf /usr/lib/chromium-browser/libffmpeg.so /usr/lib/x86_64-linux-gnu/opera/lib_extra/libffmpeg.so
+    fi
 
     set +x  # disable verbose output
 fi
