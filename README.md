@@ -297,7 +297,7 @@ sudo apt update
 sudo apt upgrade
 ```
 
-Widevine may not work in Chromium (Ungoogled-Chrome) and Opera. Run the `fix-widevine` script found inside the `bin` folder. It requires Google Chrome on the system as the script makes a symbolic link to Google's `WidevineCdm` folder. The fix for opera is more involved, requiring `libffmpeg.so` from the web. Periodically run the script whenever Opera is updated. Update WidevineCdm via Google Chrome, where it resides.
+Widevine may not work in Chromium (Ungoogled-Chrome) and Opera. This includes h264/aac not working in Opera. To resolve the issue, run the `fix-widevine` script found inside the `bin` folder. It requires Google Chrome on the system as the script makes a symbolic link to Google's `WidevineCdm` folder. The fix for opera is more involved, requiring `libffmpeg.so` from the web. Periodically run the script whenever Opera is updated. Update the WidevineCdm component using Google Chrome, where it resides.
 
 ```bash
 sudo ./fix-widevine   # as super user

@@ -40,33 +40,9 @@ if [[ $? -eq 1 ]]; then
 
     sudo sort -u $listfile -o $listfile
 
-    # Add the public key and repository for "bionic" chromium-team-beta.
-    # So that installing chromium-codecs-ffmpeg-extra from bionic versus focal.
-    # The bionic package provides aac/ac3/mpeg4audio/h264/mov/mp3 codecs, missing in focal.
-
-    curl -s 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xea6e302dc78cc4b087cfc3570ebea9b02842f111' | \
-        gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/chromium-team.gpg >/dev/null
-
-    listfile=/etc/apt/sources.list.d/chromium-team-beta.list
-
-    sudo sh -c "echo \
-        'deb http://ppa.launchpad.net/chromium-team/beta/ubuntu bionic main' \
-        >> $listfile"
-
-    sudo sort -u $listfile -o $listfile
-
-    printf "Package: chromium-codecs-ffmpeg-extra\nPin: release n=bionic\nPin-Priority: 900\n" | \
-        sudo tee /etc/apt/preferences.d/chromium-team-beta.pref >/dev/null
-
     # Installation.
     sudo apt update -y
     sudo apt install -y opera-stable
-
-    # Make a symbolic link to libffmpeg.so inside lib_extra.
-    if [[ -f /usr/lib/chromium-browser/libffmpeg.so ]]; then
-        sudo mkdir -p /usr/lib/x86_64-linux-gnu/opera/lib_extra
-        sudo ln -sf /usr/lib/chromium-browser/libffmpeg.so /usr/lib/x86_64-linux-gnu/opera/lib_extra/libffmpeg.so
-    fi
 
     set +x  # disable verbose output
 fi
