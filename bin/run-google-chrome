@@ -33,7 +33,7 @@ SCALE_FACTOR=$(
 
 exec "$EXECCMD" --window-size=1214,1000 \
     --high-dpi-support=1 --force-device-scale-factor=$SCALE_FACTOR \
-    --disable-direct-composition --in-process-gpu \
+    --disable-direct-composition \
     --disable-features=UseChromeOSDirectVideoDecoder \
     --disable-font-subpixel-positioning --disable-gpu-vsync \
     --disable-gpu-driver-bug-workarounds --enable-zero-copy \
