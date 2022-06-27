@@ -127,12 +127,12 @@ The `install` folder includes scripts for installing various browsers. Each scri
 
 ```bash
 cd install
-sudo ./install-brave
-sudo ./install-chromium       # Installs Ungoogled-Chromium
-sudo ./install-firefox        # Installs desktop file/launch script
-sudo ./install-google-chrome
-sudo ./install-opera
-sudo ./install-vivaldi
+./install-brave
+./install-chromium       # Installs Ungoogled-Chromium
+./install-firefox        # Installs desktop file/launch script
+./install-google-chrome
+./install-opera
+./install-vivaldi
 ```
 
 **desktop files**
