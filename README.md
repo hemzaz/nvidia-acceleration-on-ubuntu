@@ -75,7 +75,7 @@ Finally reboot the machine for the changes to take effect.
 The `build-all` script executes all scripts residing under the scripts folder.
 
 ```bash
-git clone https://github.com/marioroy/nvaccel-on-ubuntu.git
+git clone https://github.com/marioroy/nvidia-acceleration-on-ubuntu
 cd nvaccel-on-ubuntu
 sudo bash build-all
 ```
