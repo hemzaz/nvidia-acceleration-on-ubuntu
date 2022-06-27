@@ -76,7 +76,7 @@ The `build-all` script executes all scripts residing under the scripts folder.
 
 ```bash
 git clone https://github.com/marioroy/nvidia-acceleration-on-ubuntu
-cd nvaccel-on-ubuntu
+cd nvidia-acceleration-on-ubuntu
 sudo bash build-all
 ```
 
