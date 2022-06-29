@@ -195,10 +195,13 @@ media.rdd-process.enabled                      true
 media.rdd-ffmpeg.enabled                       true
 media.rdd-vpx.enabled                          false
 
-Enable for NVIDIA 3000+ series graphics using proprietary driver
-(v510+) and NVIDIA-NVDEC enabled VA-API driver (v0.0.5+).
-Enable also for Intel graphics supporting AV1 decoding.
+Optionally enable for NVIDIA 3000+ series graphics using proprietary
+driver v510+ and NVDEC-enabled VA-API driver v0.0.5+. Disable if AV1
+content does not appear to be hardware-accelerated.
 media.av1.enabled                              false
+
+Enable for Intel graphics supporting AV1 decoding.
+media.av1.enabled                              true
 
 Enable FFMPEG VA-API decoding support for WebRTC on Linux.
 media.navigator.mediadatadecoder_vpx_enabled   true
