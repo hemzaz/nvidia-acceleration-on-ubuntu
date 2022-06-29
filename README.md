@@ -33,7 +33,7 @@ uninstall  Browser uninstall scripts.
 
 This repo was created and tested for NVIDIA graphics on Ubuntu 20.04.4 (Focal) running Xorg (x11). The NVIDIA proprietary driver version 470.57 or higher is required via "Software & Updates" > "Additional Drivers".
 
-In addition, enable modeset for the `nvidia-drm` module. This is a requirement for the NVDEC-enabled VA driver.
+In addition, enable modeset for the `nvidia-drm` module. This is a requirement for the NVDEC-enabled VA driver. Look for `nvidia-graphics-drivers-kms.conf` under `/etc/modprobe.d/`. Skip this step if present.
 
 ```bash
 sudo tee /etc/modprobe.d/enable-nvidia-modeset.conf >/dev/null <<'EOF'
