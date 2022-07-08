@@ -118,6 +118,7 @@ if [[ -d ${name} ]]; then
     export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
     export C_INCLUDE_PATH=/usr/local/include
     export LIBRARY_PATH=/usr/local/lib
+    export CFLAGS="-O2 -march=native -pthread"
 
     meson setup .. --prefix=/usr/local --libdir=lib && ninja && \
     /usr/bin/printf "Installing nvidia_drv_video.so to $install_dest\n" && \
