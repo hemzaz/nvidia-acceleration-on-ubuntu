@@ -13,14 +13,14 @@ fi
 sudo id >/dev/null; [[ $? -ne 0 ]] && exit 2
 
 # Install package.
-dpkg-query -f '${binary:Package}\n' -W | grep -q '^firefox$'
-
-if [[ $? -eq 1 ]]; then
-    set -x  # enable verbose output
-    sudo apt update -y
-    sudo apt install -y firefox
-    set +x  # disable verbose output
-fi
+# dpkg-query -f '${binary:Package}\n' -W | grep -q '^firefox$'
+#
+# if [[ $? -eq 1 ]]; then
+#    set -x  # enable verbose output
+#    sudo apt update -y
+#    sudo apt install -y firefox
+#    set +x  # disable verbose output
+# fi
 
 app=firefox
 

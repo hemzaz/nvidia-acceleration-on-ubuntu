@@ -1,7 +1,12 @@
 #!/bin/bash
 # Launch script for Firefox.
 
-EXECCMD=/usr/bin/firefox
+if [[ -x ~/firefox/firefox ]]
+then
+    EXECCMD=~/firefox/firefox
+else
+    EXECCMD=/usr/bin/firefox
+fi
 
 if [[ ! -x "$EXECCMD" ]]
 then
@@ -30,5 +35,5 @@ export MOZ_DISABLE_RDD_SANDBOX=1
 export MOZ_USE_XINPUT2=1
 export MOZ_WEBRENDER=1
 
-exec firefox $* &>/dev/null &
+exec "$EXECCMD" $* &>/dev/null &
 

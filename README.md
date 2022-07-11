@@ -7,6 +7,7 @@ Enable hardware acceleration for NVIDIA graphics on Ubuntu Linux.
 * [Install VA-API drivers for NVIDIA graphics](#install-va-drivers)
 * [Install Microsoft core fonts](#install-mscorefonts)
 * [Install Chromium and derivatives](#install-chromium)
+* [Install Firefox as a .deb package](#install-firefox)
 * [Review Firefox settings](#firefox-settings)
 * [High DPI support](#high-dpi-support)
 * [Enable Wayland Display Server](#enable-wayland)
@@ -163,6 +164,48 @@ run-opera
 run-vivaldi
 ```
 
+### <a id="install-firefox">Install Firefox as a .deb package
+
+Hardware acceleration will not work with Firefox if installed as a snap application (Ubuntu 21.10, 22.04). Instead, install Firefox as a .deb package.
+
+1. Remove the Firefox snap application and associated dep package if installed.
+
+```bash
+sudo snap remove --purge firefox
+sudo apt autoremove firefox
+```
+
+2. Add the Mozilla team PPA to the list of software sources.
+
+```bash
+sudo add-apt-repository ppa:mozillateam/ppa
+```
+
+3. Change the Firefox package priority to ensure the PPA version is preferred.
+
+```bash
+sudo tee /etc/apt/preferences.d/mozilla-firefox >/dev/null <<'EOF'
+Package: *
+Pin: release o=LP-PPA-mozillateam
+Pin-Priority: 1001
+EOF
+```
+
+4. Ensure future Firefox upgrades install automatically.
+
+```bash
+sudo tee /etc/apt/apt.conf.d/51unattended-upgrades-firefox >/dev/null <<'EOF'
+Unattended-Upgrade::Allowed-Origins:: "LP-PPA-mozillateam:${distro_codename}";
+EOF
+```
+
+5. Install Firefox via apt.
+
+```bash
+sudo apt update
+sudo apt install firefox
+```
+
 ### <a id="firefox-settings">Review Firefox settings
 
 Below are the minimum settings applied via "about:config" to enable hardware acceleration. The `media.rdd-ffmpeg.enable` flag must be enabled for h264ify or enhanced-h264ify to work along with VP9. Basically, this allows you to choose to play videos via the h264ify extension or VP9 media by disabling h264ify and enjoy beyond 1080P playback.
@@ -287,9 +330,22 @@ To play HDR content, see `youtube-play` inside the extras folder.
 
 ### <a id="epilogue">Epilogue
 
-Depending on the quality of the video (i.e. 1080p60 or lesser), the video codec may sometimes not decode on the GPU. For example AV1 codec. A workaround is to try installing the `enhanced-h264ify` extension to make YouTube stream H.264 videos instead, but also allow VP8/VP9 via the extension settings.
+Depending on the quality of the video (1080p60 or lesser), the video codec may sometimes not decode on the GPU. For example, AV1 codec. A workaround is to try installing the `enhanced-h264ify` extension to make YouTube stream H.264 videos instead, but also allow VP8/VP9 via the extension settings. To disable AV1 altogether; in Firefox, go to `about:config` and set `media.av1.enabled` to `false`. That will fall back to using another codec such as VP9. Install the `Not yet, AV1` extension for Google Chrome and like browsers.
 
-Running install again will not overwrite or remove the associated launch script placed in the `~/bin/` folder, to preserve customizations. This is true also for the uninstall scripts.
+Running the install script again will not overwrite or remove the associated launch script placed in the `~/bin/` folder, to preserve customizations. Ditto for the uninstall scripts. Copy updated bin script manually.
+
+```bash
+cd nvidia-acceleration-on-ubuntu/bin
+cp run-firefox ~/bin/.
+```
+
+Hardware acceleration is broken in Firefox 102 for NVIDIA graphics. Install a recent [beta](https://ftp.mozilla.org/pub/firefox/releases) to `~/firefox` or wait for the next major release. The `~/bin/run-firefix` script now defaults to launching `~/firefox/firefox` otherwise `/usr/bin/firefox`. Remove the `~/firefox` folder once Firefox 103 is released and installed via `sudo apt upgrade`. Review Firefox settings in the event a new profile is created.
+
+```bash
+cd ~/Downloads
+wget https://ftp.mozilla.org/pub/firefox/releases/103.0b7/linux-x86_64/en-US/firefox-103.0b7.tar.bz2
+tar xjf firefox-103.0b7.tar.bz2 -C ~/
+```
 
 Some things are still broken in Wayland using the NVIDIA proprietary driver; i.e. nvidia-settings and VDPAU-enabled VA driver not working. Please **do not** send PRs regarding Wayland.
 
