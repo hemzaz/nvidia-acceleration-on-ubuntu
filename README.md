@@ -230,13 +230,14 @@ layers.acceleration.force-enabled              false
 media.ffmpeg.dmabuf-textures.enabled           true
 media.ffmpeg.vaapi-drm-display.enabled         true
 media.ffmpeg.vaapi.enabled                     true
+
+Ensure enabled unless building and using external FFmpeg libs 5.0 or above.
+Note: Building FFmpeg or obtaining recent FFmpeg PPA is not required.
 media.ffvpx.enabled                            true
 
 Verify enabled, necessary for the NVIDIA-NVDEC enabled driver to work.
-media.rdd-process.enabled                      true
-
 media.rdd-ffmpeg.enabled                       true
-media.rdd-vpx.enabled                          false
+media.rdd-process.enabled                      true
 
 Enable AV1 for Intel graphics supporting AV1 decoding and NVIDIA 3000+ series
 using proprietary driver v510+ and NVDEC-enabled VA-API driver v0.0.5+.
