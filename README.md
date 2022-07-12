@@ -230,7 +230,7 @@ layers.acceleration.force-enabled              false
 media.ffmpeg.dmabuf-textures.enabled           true
 media.ffmpeg.vaapi-drm-display.enabled         true
 media.ffmpeg.vaapi.enabled                     true
-media.ffvpx.enabled                            false
+media.ffvpx.enabled                            true
 
 Verify enabled, necessary for the NVIDIA-NVDEC enabled driver to work.
 media.rdd-process.enabled                      true
@@ -238,12 +238,10 @@ media.rdd-process.enabled                      true
 media.rdd-ffmpeg.enabled                       true
 media.rdd-vpx.enabled                          false
 
-Optionally enable for NVIDIA 3000+ series graphics using proprietary
-driver v510+ and NVDEC-enabled VA-API driver v0.0.5+. Disable if AV1
-content does not appear to be hardware-accelerated.
-media.av1.enabled                              false
-
-Enable for Intel graphics supporting AV1 decoding.
+Enable AV1 for Intel graphics supporting AV1 decoding and NVIDIA 3000+ series
+using proprietary driver v510+ and NVDEC-enabled VA-API driver v0.0.5+.
+Ensure the above ffvpx setting is enabled for hardware acceleration to work.
+Disable if AV1 content does not appear to be hardware-accelerated.
 media.av1.enabled                              true
 
 Enable FFMPEG VA-API decoding support for WebRTC on Linux.
