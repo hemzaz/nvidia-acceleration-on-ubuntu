@@ -2,7 +2,7 @@
 # Usage: ./000-install-dependencies
 
 # Get installed packages; append leading and trailing spaces.
-installed_packages=`dpkg --list | grep '^ii ' | cut -f1 -d: | awk '{ print "", $2, "" }'`
+installed_packages=$(dpkg --list | grep '^ii ' | cut -f1 -d: | awk '{ print "", $2, "" }')
 
 # Append list of packages to install.
 add_list=""

@@ -7,9 +7,9 @@ if [[ ! -f /usr/bin/nvidia-settings ]]; then
 fi
 
 # Exit if the the graphics driver does not meet requirement.
-version=`/usr/bin/nvidia-settings --version | grep version`
+version=$(/usr/bin/nvidia-settings --version | grep version)
 version=${version##* } # extract the version string from the line
-version=`echo $version | cut -d. -f1-2` # want major and minor, not revision
+version=$(echo $version | cut -d. -f1-2) # want major and minor, not revision
 
 if [[ $(bc -l <<< "${version} < 470.57") -eq 1 ]]; then
     echo "$0: NVIDIA graphics driver is older than 470.57, skipping..."
@@ -64,8 +64,8 @@ if [[ $? -eq 0 ]]; then
     echo "using installed $pkgname"
     use_installed_pkg=1
 else
-    pkgarch=`dpkg --print-architecture`
-    pkgversion=`dpkg-query -f '${Version}' -W libgstreamer-plugins-bad1.0-0`
+    pkgarch=$(dpkg --print-architecture)
+    pkgversion=$(dpkg-query -f '${Version}' -W libgstreamer-plugins-bad1.0-0)
     pkgfile="modpkg/${pkgname}_${pkgversion}_${pkgarch}.deb"
 
     if [[ ! -f $pkgfile ]]; then
@@ -81,7 +81,7 @@ else
 
         # Extract content, modify dependency list, and re-bundle package.
         pushd modpkg >/dev/null
-        pkgfile=`ls -1 ${pkgname}_*.deb | tail -1`
+        pkgfile=$(ls -1 ${pkgname}_*.deb | tail -1)
         pkgdir=${pkgname}_dir
 
         echo "dpkg-deb -x $pkgfile $pkgdir"
