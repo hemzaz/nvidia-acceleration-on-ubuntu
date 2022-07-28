@@ -331,7 +331,7 @@ cd nvidia-acceleration-on-ubuntu/bin
 cp run-firefox ~/bin/.
 ```
 
-Hardware acceleration is broken in Firefox 102 for NVIDIA graphics. Install a recent [beta](https://ftp.mozilla.org/pub/firefox/releases) to `~/firefox` or wait for the next major release. The `~/bin/run-firefix` script now defaults to launching `~/firefox/firefox` otherwise `/usr/bin/firefox`. Remove the `~/firefox` folder once Firefox 103 is released and installed via `sudo apt upgrade`. Review Firefox settings in the event a new profile is created.
+Hardware acceleration is broken in Firefox 102 for NVIDIA graphics. Install a recent [beta](https://ftp.mozilla.org/pub/firefox/releases) to `~/firefox` or wait for the OS vendor to update to the next major release. The `~/bin/run-firefix` script now defaults to launching `~/firefox/firefox` otherwise `/usr/bin/firefox`. Remove the `~/firefox` folder once Firefox 103 is released and installed via `sudo apt upgrade`. Review Firefox settings in the event a new profile is created. Set `media.ffmpeg.vaapi.enabled` to `true`. Optionally, set `media.av1.enabled` to `false` if AV1 is not supported by your graphics card.
 
 ```bash
 cd ~/Downloads
