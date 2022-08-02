@@ -81,7 +81,7 @@ cd nvidia-acceleration-on-ubuntu
 sudo bash build-all
 ```
 
-Or become root and run each script individually starting with `000-install-dependencies`.
+Or become root and run each script individually and orderly starting with `000-install-dependencies`. Finally, run `ldconfig`.
 
 ```bash
 sudo root
@@ -93,6 +93,7 @@ cd scripts
 ./210-build-vaapi-nvidia        # Installs NVDEC-enabled VA-API driver, for Firefox
 ./220-build-vdpau-va-driver-v9  # Installs VDPAU-enabled VA-API driver, for Google Chrome and derivatives
 
+ldconfig                        # Refresh the dynamic linker cache
 exit                            # Exit sudo; remaining steps must run as the normal user
 ```
 
