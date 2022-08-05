@@ -124,6 +124,15 @@ if [[ -d ${name} ]]; then
     /usr/bin/printf "Installing nvidia_drv_video.so to $install_dest\n" && \
     cp -p nvidia_drv_video.so $install_dest
 
+    [[ $? -ne 0 ]] && exit $?
+
+    if [[ -f /usr/local/lib/dri/nvdec_drv_video.so ]]; then
+        set -x
+        pushd /usr/local/lib/dri >/dev/null
+        ln -sf nvdec_drv_video.so nvidia_drv_video.so
+        popd >/dev/null
+    fi
+
     [[ $use_installed_pkg -eq 0 ]] && apt remove -y $pkgname
 fi
 

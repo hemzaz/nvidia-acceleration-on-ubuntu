@@ -48,14 +48,5 @@ if [[ -d ${name} ]]; then
     ./autogen.sh --prefix=/usr/local --enable-glx && \
     make -j 4 && make install && \
     rm -f /usr/local/lib/dri/vdpau_drv_video.la
-
-    [[ $? -ne 0 ]] && exit $?
-
-    if [[ -f /usr/local/lib/dri/vdpau_drv_video.so ]]; then
-        set -x
-        pushd /usr/local/lib/dri >/dev/null
-        ln -sf vdpau_drv_video.so nvidia_drv_video.so
-        popd >/dev/null
-    fi
 fi
 
