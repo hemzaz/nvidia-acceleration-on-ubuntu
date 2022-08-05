@@ -97,7 +97,7 @@ ldconfig                        # Refresh the dynamic linker cache
 exit                            # Exit sudo; remaining steps must run as the normal user
 ```
 
-The `builddir` folder (once created) serves as a cache folder. Remove the correspondent `*.tar.gz` file(s) to re-fetch/clone from the internet. I'm hoping that the build process succeeds for you as it does for me. However, I may have a package installed that's missing in `000-install-dependencies`. Please reach out if that's the case.
+The `builddir` folder (once created) serves as a cache folder. Remove `builddir` entirely or the correspondent `*.tar.gz` file(s) to re-fetch/clone from the internet. I'm hoping that the build process succeeds for you as it does for me. However, I may have a package installed that's missing in `000-install-dependencies`. Please reach out if that's the case.
 
 Verify each VA-API driver with `vainfo`.
 
