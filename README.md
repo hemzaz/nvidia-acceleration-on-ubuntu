@@ -269,18 +269,6 @@ xrdb -query                        # Xft.dpi: 109
 
 The launch scripts for Chromium-based browsers set the scale-factor automatically, based on the `Xft.dpi` value. You may find that the right edge of the window is not straight all the way to the top. Simply edit the `~/bin/run-*` launch script and adjust the width in 2 pixels increment until a straight edge.
 
-For Firefox, go to "about:config" and change the `layout.css.devPixelsPerPx` value manually. Start with 1.0 and increase-decrease in 0.01 increments or enter the value for `Xft.dpi` divided by 96. For example, 109 DPI / 96 = 1.135416667.
-
-```text
-layout.css.devPixelsPerPx          1.135416667
-```
-
-Firefox context-menus may not work in Wayland. Ensure the context-menu is working by right-clicking in the URL field. If the popup-menu is not sticking, then try decreasing or increasing the value (i.e. 1.0, 1.12, 1.25, 1.5, 2.0).
-
-```text
-layout.css.devPixelsPerPx          1.12
-```
-
 ### <a id="enable-wayland">Enable Wayland Display Server
 
 This requires NVIDIA driver 470.x, minimally. Ensure dependencies are installed.
