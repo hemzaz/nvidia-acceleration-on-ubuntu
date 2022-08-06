@@ -14,8 +14,6 @@ Enable hardware acceleration for NVIDIA graphics on Ubuntu Linux.
 * [Watch HDR content](#watch-hdr-content)
 * [Epilogue](#epilogue)
 
-Thank you, @xtknight for the initial [VP9](https://github.com/xtknight/vdpau-va-driver-vp9) acceleration bits. Likewise and thank you, @xuanruiqi for the [VP9-update](https://github.com/xuanruiqi/vdpau-va-driver-vp9) to include additional fixes. Finally, thank you @elFarto for the [NVDEC-enabled](https://github.com/elFarto/nvidia-vaapi-driver) driver. Both drivers can co-exist with few tweaks to the installation process.
-
 ### <a id="whats-included">What's included
 
 This is an automation **how-to** for installing minimum dependencies and building two VA-API drivers for use with NVIDIA graphics.
@@ -212,6 +210,27 @@ sudo apt install firefox
 Below are the minimum settings applied via "about:config" to enable hardware acceleration. The `media.rdd-ffmpeg.enable` flag must be enabled for h264ify or enhanced-h264ify to work along with VP9. Basically, this allows you to choose to play videos via the h264ify extension or VP9 media by disabling h264ify and enjoy beyond 1080P playback.
 
 ```text
+Required, enables hardware acceleration using VA-API.
+media.ffmpeg.vaapi.enabled                     true
+
+Required, enables hardware VA-API decoding support for WebRTC (e.g. Google Meet).
+media.navigator.mediadatadecoder_vpx_enabled   true
+
+Required, for HW acceleration to work using NVIDIA 470 series drivers.
+widget.dmabuf.force-enabled                    true
+
+Required, leave this setting true to use the internal decoders for VP8/VP9.
+media.ffvpx.enabled                            true
+
+Optional, or false if prefer external FFmpeg including LD_LIBRARY_PATH set.
+media.ffvpx.enabled                            false
+
+Optional, disables AV1 content; ensure false if graphics lacks support.
+media.av1.enabled                              false
+
+---
+The rest are defaults or not set and kept here as informative knownledge.
+
 Enable software render if you want to render on the CPU instead of GPU.
 Preferably, leave this setting false since webrender on the GPU is needed
 to decode videos in hardware.
@@ -224,26 +243,9 @@ gfx.xrender.enabled                            false
 Ensure false so to be on a supported code path for using WebRender.
 layers.acceleration.force-enabled              false
 
-Disable if your graphics hardware lacks support for AV1.
-media.av1.enabled                              false
-
-media.ffmpeg.dmabuf-textures.enabled           true
-media.ffmpeg.vaapi-drm-display.enabled         true
-media.ffmpeg.vaapi.enabled                     true
-
-Ensure enabled unless building and using external FFmpeg libs 5.0 or above.
-Note: Building FFmpeg or obtaining recent FFmpeg PPA is not required.
-media.ffvpx.enabled                            true
-
-Verify enabled, necessary for the NVIDIA-NVDEC enabled driver to work.
+Ensure enabled, default since Firefox 97.
 media.rdd-ffmpeg.enabled                       true
 media.rdd-process.enabled                      true
-
-Enable FFMPEG VA-API decoding support for WebRTC on Linux.
-media.navigator.mediadatadecoder_vpx_enabled   true
-
-Enable to help get decoding to work for NVIDIA 470 driver series.
-widget.dmabuf.force-enabled                    true
 ```
 
 Run the install script for Firefox if missed in the prior section.
@@ -344,4 +346,8 @@ sudo ./fix-widevine   # as super user
 ```
 
 Restart Chromium and/or Opera. Chromium may requires 2 restarts.
+
+### Acknowledgement
+
+Thank you, @xtknight for the initial [VP9](https://github.com/xtknight/vdpau-va-driver-vp9) acceleration bits. Likewise and thank you, @xuanruiqi for the [VP9-update](https://github.com/xuanruiqi/vdpau-va-driver-vp9) to include additional fixes. Finally, thank you @elFarto for the [NVDEC-enabled](https://github.com/elFarto/nvidia-vaapi-driver) driver. Both drivers can co-exist with few tweaks to the installation process.
 
