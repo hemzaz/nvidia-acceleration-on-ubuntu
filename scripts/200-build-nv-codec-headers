@@ -32,7 +32,7 @@ tar xzf nv-codec-headers-${nvver}.tar.gz
 
 if [[ -d nv-codec-headers-${nvver} ]]; then
     cd nv-codec-headers-${nvver}
-    make PREFIX=/usr/local && \
-    make install
+    make PREFIX="/usr/local" LIBDIR="lib" && \
+    make PREFIX="/usr/local" LIBDIR="lib" install
 fi
 
