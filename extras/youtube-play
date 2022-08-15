@@ -1,22 +1,32 @@
-#!/bin/bash
-# A script for playing YouTube videos.
-
+#!/usr/bin/env bash
+###############################################################################
+#
+# A script for playing YouTube videos using NVIDIA Graphics.
+#
+# by Mario Roy, August 2022
+#    for testing video hardware acceleration in ffmpeg
+#
 url=$1
 
 # Display usage.
 if [ -z "$url" -o "$url" = "-h" -o "$url" = "--help" ]; then
-    # The YouTube URL is "Best 8k HDR of 2020 Dolby Vision".
+    echo 'The YouTube URL is "Best 8k HDR of 2020 Dolby Vision"'
+    echo ""
     echo "Usage:"
     echo "  youtube-play URL -F, --list-formats"
     echo "  youtube-play https://youtu.be/Jz9TdfXlTgs -F"
     echo "  youtube-play https://youtu.be/Jz9TdfXlTgs --list-formats"
     echo ""
     echo "  youtube-play URL [VIDEO_FORMAT_CODE]"
-    echo "  youtube-play https://youtu.be/Jz9TdfXlTgs      # 720p (vp9/HDR preferred)"
-    echo "  youtube-play https://youtu.be/Jz9TdfXlTgs 136  # 720p avc1"
-    echo "  youtube-play https://youtu.be/Jz9TdfXlTgs 247  # 720p vp9"
-    echo "  youtube-play https://youtu.be/Jz9TdfXlTgs 698  # 720p av01 HDR"
-    echo "  youtube-play https://youtu.be/Jz9TdfXlTgs 334  # 720p vp9  HDR"
+    echo "  youtube-play https://youtu.be/Jz9TdfXlTgs      #  auto auto"
+    echo "  youtube-play https://youtu.be/Jz9TdfXlTgs 136  #  720p avc1"
+    echo "  youtube-play https://youtu.be/Jz9TdfXlTgs 247  #  720p vp9"
+    echo "  youtube-play https://youtu.be/Jz9TdfXlTgs 698  #  720p av01 HDR"
+    echo "  youtube-play https://youtu.be/Jz9TdfXlTgs 334  #  720p vp9  HDR"
+    echo "  youtube-play https://youtu.be/Jz9TdfXlTgs 137  # 1080p avc1"
+    echo "  youtube-play https://youtu.be/Jz9TdfXlTgs 248  # 1080p vp9"
+    echo "  youtube-play https://youtu.be/Jz9TdfXlTgs 699  # 1080p av01 HDR"
+    echo "  youtube-play https://youtu.be/Jz9TdfXlTgs 335  # 1080p vp9  HDR"
     echo ""
     echo "Interactive commands:"
     echo "  f            toggle full screen"
@@ -26,7 +36,16 @@ if [ -z "$url" -o "$url" = "-h" -o "$url" = "--help" ]; then
     exit 1
 fi
 
+# YouTube Downloader ##########################################################
+#
+# Installation: pip3 install --user --upgrade yt-dlp
+#
 youtube_dl=~/.local/bin/yt-dlp
+
+if [ ! -f "$youtube_dl" ]; then
+    echo "Please install yt-dlp as described in the README file."
+    exit 1
+fi
 
 # List all available formats of the requested video.
 if [ "$2" = "-F" -o "$2" = "--list-formats" ]; then
@@ -34,22 +53,30 @@ if [ "$2" = "-F" -o "$2" = "--list-formats" ]; then
     exit 0
 fi
 
-# Set the format code, otherwise default to 135.
+# Set the format code if given on the command line.
 if [ -n "$2" ]; then
     video_format=$2
 else
-    #video_format="bestvideo[ext=mp4]"
-    video_format="334/698/247/136"   # 720p vp9/HDR preferred
+    video_format="bestvideo[height<=?1080][fps<=?30][ch!=?2]"
 fi
 
+# Fetch the title and audio+video URLs into an array.
+# title: ${lines[0]}, audio: ${lines[1]}, video: ${lines[2]}
+
+readarray -t lines < <(
+    ${youtube_dl} --get-title -g \
+        -f "bestaudio[ext=webm]+${video_format}" "$url"
+)
+
+# ffmpeg ######################################################################
+#
 # The -g option returns the url to the video or audio stream.
 # The -f matroska option instructs FFmpeg to use the mkv container format.
 # The -sn -dn options refer to no subtitles and data encoding respectively.
 # The -ignore_unknown option refers to ignore unknown streams.
-
+#
 ffmpeg -hide_banner -loglevel quiet -hwaccel nvdec \
-    -i $( ${youtube_dl} -g "$url" -f "bestaudio[ext=webm]" ) \
-    -i $( ${youtube_dl} -g "$url" -f "$video_format" ) \
-    -c:v hevc_nvenc -preset llhq -c:a copy -f matroska \
+    -i "${lines[1]}" -i "${lines[2]}" \
+    -c:v hevc_nvenc -c:a copy -f matroska \
     -sn -dn -ignore_unknown - | exec ffplay -hide_banner -
 
