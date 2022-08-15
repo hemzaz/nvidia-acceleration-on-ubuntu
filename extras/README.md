@@ -2,7 +2,7 @@
 
 A YouTube complementary player for YouTube Downloader.
 
-The player script was created to test `nvdec` and `nvenc` hardware acceleration using NVIDIA graphics. Another use-case is playing HDR content from YouTube.
+The player script was created to test `nvdec` and `nvenc` hardware acceleration using NVIDIA graphics.
 
 ### Requirements
 
