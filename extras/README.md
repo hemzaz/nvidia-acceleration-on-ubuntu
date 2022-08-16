@@ -49,7 +49,7 @@ You can control the playing process while playing a video using interactive comm
   q, ESCAPE    quit
 ```
 
-### See also, repo using mpv
+### See also, YouTube player using Mpv
 
 https://github.com/marioroy/youtube-play
 
