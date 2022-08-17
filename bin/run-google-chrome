@@ -3,14 +3,12 @@
 
 EXECCMD=/usr/bin/google-chrome-stable
 
-if [[ ! -x "$EXECCMD" ]]
-then
+if [[ ! -x "$EXECCMD" ]]; then
     echo "ERROR: cannot access '$EXECCMD': No such executable"
     exit 1
 fi
 
-if [[ $XDG_SESSION_TYPE == wayland ]]
-then
+if [[ $XDG_SESSION_TYPE == wayland ]]; then
     GL=egl
 else
     GL=desktop
@@ -22,14 +20,14 @@ else
     fi
 fi
 
+# Do not enable #ignore-gpu-blocklist for NVIDIA graphics.
+# It may cause extra CPU utilization in Wayland, during video playback.
+
 SCALE_FACTOR=$(
     xrdb -query Xft.dpi | awk '/^Xft.dpi:/ {
         printf("%.9f", $2 / 96)
     }'
 )
-
-# Do not enable #ignore-gpu-blocklist for NVIDIA graphics.
-# It may cause extra CPU utilization in Wayland, during video playback.
 
 exec "$EXECCMD" --window-size=1214,1000 \
     --high-dpi-support=1 --force-device-scale-factor=$SCALE_FACTOR \
@@ -38,6 +36,6 @@ exec "$EXECCMD" --window-size=1214,1000 \
     --disable-font-subpixel-positioning --disable-gpu-vsync \
     --disable-gpu-driver-bug-workarounds --enable-zero-copy \
     --enable-accelerated-2d-canvas --enable-smooth-scrolling \
-    --enable-features=VaapiVideoDecoder,CanvasOopRasterization \
+    --enable-features=VaapiVideoDecoder \
     --enable-gpu-rasterization --use-gl=$GL $* &> /dev/null &
 
