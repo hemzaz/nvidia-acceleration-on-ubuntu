@@ -39,7 +39,7 @@ exec "$EXECCMD" --window-size=1208,974 \
     --disable-features=UseChromeOSDirectVideoDecoder \
     --disable-font-subpixel-positioning --disable-gpu-vsync \
     --disable-gpu-driver-bug-workarounds --enable-zero-copy \
-    --enable-accelerated-2d-canvas --enable-smooth-scrolling \
-    --enable-features=VaapiVideoDecoder $OZ \
+    --enable-accelerated-2d-canvas --enable-smooth-scrolling $OZ \
+    --enable-features=VaapiVideoDecoder --enable-accelerated-video-decode \
     --enable-gpu-rasterization --use-gl=$GL $* &> /dev/null &
 
