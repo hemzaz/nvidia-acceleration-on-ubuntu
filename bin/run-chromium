@@ -8,9 +8,14 @@ if [[ ! -x "$EXECCMD" ]]; then
     exit 1
 fi
 
-if [[ $XDG_SESSION_TYPE == wayland ]]; then
+# Do not enable #ignore-gpu-blocklist for NVIDIA graphics.
+# It may cause extra CPU utilization in Wayland, during video playback.
+
+if [[ ${XDG_SESSION_TYPE} == "wayland" ]]; then
+    OZ="--enable-features=UseOzonePlatform --ozone-platform=wayland"
     GL=egl
 else
+    OZ=""
     GL=desktop
     if [[ -f /usr/bin/nvidia-settings && -f /usr/local/lib/dri/vdpau_drv_video.so ]]
     then
@@ -21,8 +26,7 @@ else
     fi
 fi
 
-# Do not enable #ignore-gpu-blocklist for NVIDIA graphics.
-# It may cause extra CPU utilization in Wayland, during video playback.
+# Using GNOME? Run gnome-tweaks > Fonts > Scaling Factor
 
 SCALE_FACTOR=$(
     xrdb -query Xft.dpi | awk '/^Xft.dpi:/ {
@@ -37,6 +41,6 @@ exec "$EXECCMD" --window-size=1214,1000 \
     --disable-font-subpixel-positioning --disable-gpu-vsync \
     --disable-gpu-driver-bug-workarounds --enable-zero-copy \
     --enable-accelerated-2d-canvas --enable-smooth-scrolling \
-    --enable-features=VaapiVideoDecoder \
+    --enable-features=VaapiVideoDecoder $OZ \
     --enable-gpu-rasterization --use-gl=$GL $* &> /dev/null &
 
