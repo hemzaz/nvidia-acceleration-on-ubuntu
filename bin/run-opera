@@ -12,11 +12,9 @@ fi
 # It may cause extra CPU utilization in Wayland, during video playback.
 
 if [[ ${XDG_SESSION_TYPE} == "wayland" ]]; then
-    OZ="--enable-features=UseOzonePlatform --ozone-platform=wayland"
-    GL=egl
+    GL=egl OZ="--ozone-platform-hint=auto"
 else
-    OZ=""
-    GL=desktop
+    GL=desktop OZ=""
     if [[ -f /usr/bin/nvidia-settings && -f /usr/local/lib/dri/vdpau_drv_video.so ]]
     then
         # The VDPAU-backend driver works in x11 only.
@@ -33,13 +31,13 @@ SCALE_FACTOR=$(
     }'
 )
 
-exec "$EXECCMD" --window-size=1212,950 \
+exec "$EXECCMD" --window-size=1213,952 \
     --high-dpi-support=1 --force-device-scale-factor=$SCALE_FACTOR \
     --disable-direct-composition \
     --disable-features=UseChromeOSDirectVideoDecoder \
     --disable-font-subpixel-positioning --disable-gpu-vsync \
     --disable-gpu-driver-bug-workarounds --enable-zero-copy \
     --enable-accelerated-2d-canvas --enable-smooth-scrolling $OZ \
-    --enable-features=VaapiVideoDecoder --enable-accelerated-video-decode \
+    --enable-features=VaapiVideoDecoder \
     --enable-gpu-rasterization --use-gl=$GL $* &> /dev/null &
 
