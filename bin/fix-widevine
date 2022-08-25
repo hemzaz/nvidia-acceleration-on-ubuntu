@@ -94,7 +94,7 @@ if [[ -n "$OPERA_DIR" ]]; then
     VERSION_URL=$(basename $FFMPEG_URL | sed -e 's/-linux-x64\.zip$//')
     VERSION_LOC=$(head -1 "$OPERA_LIB_EXTRA/libffmpeg.ver" 2>/dev/null)
 
-    if [[ "$VERSION_URL" == "$VERSION_LOC" ]]; then
+    if [[ "$VERSION_URL" = "$VERSION_LOC" ]]; then
         echo "# libffmpeg-$VERSION_URL current"
     else
         echo "# downloading libffmpeg-$(basename $FFMPEG_URL)"

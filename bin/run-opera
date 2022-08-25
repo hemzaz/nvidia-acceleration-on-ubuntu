@@ -11,10 +11,10 @@ fi
 # Do not enable #ignore-gpu-blocklist for NVIDIA graphics.
 # It may cause extra CPU utilization in Wayland, during video playback.
 
-if [[ ${XDG_SESSION_TYPE} == "wayland" ]]; then
-    GL=egl OZ="--ozone-platform-hint=auto"
+if [[ "$XDG_SESSION_TYPE" = "wayland" ]]; then
+    GL=egl
 else
-    GL=desktop OZ=""
+    GL=desktop
     if [[ -f /usr/bin/nvidia-settings && -f /usr/local/lib/dri/vdpau_drv_video.so ]]
     then
         # The VDPAU-backend driver works in x11 only.
@@ -31,13 +31,25 @@ SCALE_FACTOR=$(
     }'
 )
 
-exec "$EXECCMD" --window-size=1213,952 \
-    --high-dpi-support=1 --force-device-scale-factor=$SCALE_FACTOR \
-    --disable-direct-composition \
+# Scale Factor is problematic on Ozone-Wayland; ignores force argument
+# Refer to: https://bugs.chromium.org/p/chromium/issues/detail?id=910797
+
+SF="--high-dpi-support=1 --force-device-scale-factor=$SCALE_FACTOR" OZ=""
+
+if [[ "$XDG_SESSION_TYPE" = "wayland" ]]; then
+    # Do not care about Scale Factor working; Prefer Chrome for playing videos.
+    # OZ="--ozone-platform-hint=auto" SF=""   # Use OzonePlatform and clear SF.
+    # Need Scale Factor on HiDPI display; Prefer Firefox for playing videos.
+    OZ="--disable-features=UseOzonePlatform"  # Disable OzonePlatform.
+fi
+
+# Opt-in: change to --enable-font-subpixel-positioning on HiDPI display
+
+exec "$EXECCMD" --window-size=1213,952 $SF $OZ \
     --disable-features=UseChromeOSDirectVideoDecoder \
-    --disable-font-subpixel-positioning --disable-gpu-vsync \
-    --disable-gpu-driver-bug-workarounds --enable-zero-copy \
-    --enable-accelerated-2d-canvas --enable-smooth-scrolling $OZ \
-    --enable-features=VaapiVideoDecoder \
-    --enable-gpu-rasterization --use-gl=$GL $* &> /dev/null &
+    --disable-gpu-driver-bug-workarounds --disable-gpu-vsync \
+    --disable-font-subpixel-positioning --disable-direct-composition \
+    --enable-accelerated-2d-canvas --enable-gpu-rasterization \
+    --enable-features=VaapiVideoDecoder --enable-smooth-scrolling \
+    --enable-zero-copy --use-gl=$GL $* &> /dev/null &
 
