@@ -40,7 +40,7 @@ if [[ "$XDG_SESSION_TYPE" = "wayland" ]]; then
     # Do not care about Scale Factor working; prefer Chrome for playing videos.
     # OZ="--ozone-platform-hint=auto" SF=""   # Use OzonePlatform and clear SF.
     # Need Scale Factor on HiDPI display; prefer Firefox for playing videos.
-    OZ="--disable-features=UseOzonePlatform"  # Disable Ozone.
+      OZ="--disable-features=UseOzonePlatform"   # Disable Ozone.
 fi
 
 # Opt-in: change to --enable-font-subpixel-positioning on HiDPI display
