@@ -313,6 +313,15 @@ To play HDR content, see `youtube-play` inside the extras folder.
 
 ### <a id="epilogue">Epilogue
 
+Do you experience longer boot time after installing the driver? The driver checks for a USB3 display. The following will disable it, decreasing boot time.
+
+```bash
+sudo mkdir -p /etc/modprobe.d
+sudo tee "/etc/modprobe.d/disable-i2c_nvidia_gpu.conf" >/dev/null <<'EOF'
+blacklist i2c_nvidia_gpu
+EOF
+```
+
 Depending on the quality of the video (1080p60 or lesser), the video codec may sometimes not decode on the GPU. For example, AV1 codec. A workaround is to try installing the `enhanced-h264ify` extension to make YouTube stream H.264 videos instead, but also allow VP8/VP9 via the extension settings. To disable AV1 altogether; in Firefox, go to `about:config` and set `media.av1.enabled` to `false`. That will fall back to using another codec such as VP9. Install the `Not yet, AV1` extension for Google Chrome and like browsers.
 
 Running the install script again will not overwrite or remove the associated launch script placed in the `~/bin/` folder, to preserve customizations. Ditto for the uninstall scripts. Copy updated bin script manually.
