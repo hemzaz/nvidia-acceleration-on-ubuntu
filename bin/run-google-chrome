@@ -46,8 +46,7 @@ fi
 # Opt-in: change to --enable-font-subpixel-positioning on HiDPI display
 
 exec "$EXECCMD" --window-size=1213,1004 $SF $OZ \
-    --disable-features=UseChromeOSDirectVideoDecoder \
-    --disable-gpu-driver-bug-workarounds --disable-gpu-vsync \
+    --disable-features=UseChromeOSDirectVideoDecoder --disable-gpu-vsync \
     --disable-font-subpixel-positioning --disable-direct-composition \
     --enable-features=VaapiVideoDecoder --enable-smooth-scrolling \
     --enable-accelerated-2d-canvas --enable-gpu-rasterization \
