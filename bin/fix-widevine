@@ -65,8 +65,8 @@ if [[ -n "$OPERA_DIR" && ! -f "$OPERA_WIDEVINE_CFG" ]]; then
 fi
 
 # Check libffmpeg.so.
-FFMPEG_SRC_REL="https://github.com/iteufel/nwjs-ffmpeg-prebuilt/releases"
-FFMPEG_ALT_REL="https://github.com/Ld-Hagen/fix-opera-linux-ffmpeg-widevine/releases"
+FFMPEG_SRC_REL="https://github.com/iteufel/nwjs-ffmpeg-prebuilt/releases/"
+FFMPEG_ALT_REL="https://github.com/Ld-Hagen/fix-opera-linux-ffmpeg-widevine/releases/"
 
 if [[ -n "$OPERA_DIR" ]]; then
     echo "# checking requirements"
@@ -85,7 +85,13 @@ if [[ -n "$OPERA_DIR" ]]; then
     )
 
     echo "# comparing versions"
-    if [[ $(basename $FFMPEG_SRC_URL) > $(basename $FFMPEG_ALT_URL) ]]; then
+    if [[ -z "$FFMPEG_SRC_URL" ]]; then
+        if [[ -z "$FFMPEG_ALT_URL" ]]; then
+            echo "Cannot obtain version info"
+            exit 1
+        fi
+        FFMPEG_URL="https://github.com$FFMPEG_ALT_URL"
+    elif [[ $(basename $FFMPEG_SRC_URL) > $(basename $FFMPEG_ALT_URL) ]]; then
         FFMPEG_URL="https://github.com$FFMPEG_SRC_URL"
     else
         FFMPEG_URL="https://github.com$FFMPEG_ALT_URL"
@@ -94,7 +100,7 @@ if [[ -n "$OPERA_DIR" ]]; then
     VERSION_URL=$(basename $FFMPEG_URL | sed -e 's/-linux-x64\.zip$//')
     VERSION_LOC=$(head -1 "$OPERA_LIB_EXTRA/libffmpeg.ver" 2>/dev/null)
 
-    if [[ "$VERSION_URL" = "$VERSION_LOC" ]]; then
+    if [[ "$VERSION_URL" == "$VERSION_LOC" ]]; then
         echo "# libffmpeg-$VERSION_URL current"
     else
         echo "# downloading libffmpeg-$(basename $FFMPEG_URL)"
