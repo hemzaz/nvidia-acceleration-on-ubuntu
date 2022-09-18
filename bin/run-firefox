@@ -12,6 +12,10 @@ if [[ ! -x "$EXECCMD" ]]; then
     exit 1
 fi
 
+if [[ "$1" == "--version" ]]; then
+    exec "$EXECCMD" --version
+fi
+
 if [[ -f /usr/bin/nvidia-settings && -f /usr/local/lib/dri/nvdec_drv_video.so ]]; then
     # The NVDEC-backend driver works in x11 and Wayland.
     export LIBVA_DRIVERS_PATH=/usr/lib/x86_64-linux-gnu/dri:/usr/local/lib/dri
@@ -19,7 +23,7 @@ if [[ -f /usr/bin/nvidia-settings && -f /usr/local/lib/dri/nvdec_drv_video.so ]]
     export MOZ_DISABLE_RDD_SANDBOX=1
 fi
 
-if [[ "$XDG_SESSION_TYPE" = "wayland" ]]; then
+if [[ "$XDG_SESSION_TYPE" == "wayland" ]]; then
     export EGL_PLATFORM=wayland
     export MOZ_ENABLE_WAYLAND=1
 else

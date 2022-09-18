@@ -8,10 +8,14 @@ if [[ ! -x "$EXECCMD" ]]; then
     exit 1
 fi
 
+if [[ "$1" == "--version" ]]; then
+    exec "$EXECCMD" --version
+fi
+
 # Do not enable #ignore-gpu-blocklist for NVIDIA graphics.
 # It may cause extra CPU utilization in Wayland, during video playback.
 
-if [[ "$XDG_SESSION_TYPE" = "wayland" ]]; then
+if [[ "$XDG_SESSION_TYPE" == "wayland" ]]; then
     GL=egl
 else
     GL=desktop
@@ -36,7 +40,7 @@ SCALE_FACTOR=$(
 
 SF="--high-dpi-support=1 --force-device-scale-factor=$SCALE_FACTOR" OZ=""
 
-if [[ "$XDG_SESSION_TYPE" = "wayland" ]]; then
+if [[ "$XDG_SESSION_TYPE" == "wayland" ]]; then
     # Do not care about Scale Factor working; prefer Chrome for playing videos.
     # OZ="--ozone-platform-hint=auto" SF=""   # Use OzonePlatform and clear SF.
     # Need Scale Factor on HiDPI display; prefer Firefox for playing videos.
