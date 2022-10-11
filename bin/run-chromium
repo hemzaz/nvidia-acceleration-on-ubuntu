@@ -16,7 +16,7 @@ fi
 # It may cause extra CPU utilization in Wayland, during video playback.
 
 if [[ "$XDG_SESSION_TYPE" != "wayland" ]]; then
-    if [[ -f /usr/bin/nvidia-settings && -f /usr/local/lib/dri/vdpau_drv_video.so ]]
+    if [[ -n $(lsmod | grep nvidia_drm) && -f /usr/local/lib/dri/vdpau_drv_video.so ]]
     then
         # The VDPAU-backend driver works in x11 only.
         # Hardware acceleration may not work in Chromium.
