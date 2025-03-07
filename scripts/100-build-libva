@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # The NVDEC-enabled VA-API driver requires minimum libva version 2.8.0.
 # Ubuntu 20.04.4 (Focal) has libva 2.7.0.
@@ -7,22 +7,52 @@ name=libva
 branch=v2.14-branch
 echo "building ${name} branch ${branch}"
 
-mkdir -p builddir && cd builddir
-rm -fr ${name}
+mkdir -p builddir || { echo "Failed to create builddir"; exit 1; }
+
+cd builddir || { echo "Failed to change directory to builddir"; exit 1; }
+rm -fr "${name}"
 
 if [[ ! -f ${name}.tar.gz ]]; then
     url="https://github.com/intel/libva.git"
     echo "git clone --depth 1 --branch ${branch} ${url}"
-    git clone --depth 1 --branch ${branch} ${url}
-    tar czf ${name}.tar.gz ${name}
+    if ! git clone --depth 1 --branch "${branch}" "${url}"; then
+        echo "Failed to clone repository"
+        exit 1
+    fi
+    
+    # Verify repository integrity
+    if [ ! -f "${name}/autogen.sh" ]; then
+        echo "Repository contents look invalid"
+        exit 1
+    fi
+    
+    tar czf "${name}.tar.gz" "${name}" || { echo "Failed to create archive"; exit 1; }
 else
-    tar xzf ${name}.tar.gz
+    tar xzf "${name}.tar.gz" || { echo "Failed to extract archive"; exit 1; }
 fi
 
 if [[ -d ${name} ]]; then
-    cd ${name}
-    ./autogen.sh --prefix=/usr/local && \
-    make -j && make install && \
+    cd "${name}" || { echo "Failed to change directory to ${name}"; exit 1; }
+    
+    if ! ./autogen.sh --prefix=/usr/local; then
+        echo "Failed to run autogen.sh"
+        exit 1
+    fi
+    
+    if ! make -j; then
+        echo "Failed to build"
+        exit 1
+    fi
+    
+    if ! make install; then
+        echo "Failed to install"
+        exit 1
+    fi
+    
     rm -f /usr/local/lib/libva*.la
+    echo "libva built successfully"
+else
+    echo "Build directory not found"
+    exit 1
 fi
 

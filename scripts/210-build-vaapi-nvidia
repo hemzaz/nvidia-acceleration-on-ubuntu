@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Exit if nvidia-settings is not installed.
 if [[ ! -f /usr/bin/nvidia-settings ]]; then
@@ -11,21 +11,41 @@ version=$(/usr/bin/nvidia-settings --version | grep version)
 version=${version##* } # extract the version string from the line
 version=${version%%.*} # extract major, not minor and revision
 
+# Ensure bc is available
+if ! command -v bc &> /dev/null; then
+    echo "bc command not found, installing..."
+    if ! apt update -y && apt install -y bc; then
+        echo "Failed to install bc"
+        exit 1
+    fi
+fi
+
 if [[ $(bc -l <<< "${version} < 470") -eq 1 ]]; then
     echo "$0: NVIDIA graphics driver is older than 470, skipping..."
     exit 0
 fi
 
+# Log NVIDIA driver version for debugging
+echo "$0: Detected NVIDIA driver version: ${version}"
+
 name=nvidia-vaapi-driver
 echo "building ${name}"
 
-mkdir -p builddir && cd builddir
+mkdir -p builddir || { echo "Failed to create builddir"; exit 1; }
+cd builddir || { echo "Failed to change to builddir"; exit 1; }
 rm -fr ${name}
 
 if [[ ! -f ${name}.tar.gz ]]; then
     url="https://github.com/elFarto/nvidia-vaapi-driver"
     echo "git clone --depth 1 ${url}"
     git clone --depth 1 ${url}
+
+    # Check for CUDA support
+    if grep -q "cuda" ${name}/src/*.c 2>/dev/null; then
+        echo "$0: CUDA support detected in the driver"
+    else
+        echo "$0: CUDA support not detected in the driver"
+    fi
 
     # To allow building on Ubuntu using older meson 0.53.2 binary,
     # remove meson_version and meson.add_devenv block from meson.build.
@@ -76,7 +96,10 @@ else
 
         # Download package and move it to the build folder.
         echo "apt download $pkgname"
-        apt download $pkgname 2>/dev/null
+        if ! apt download $pkgname; then
+            echo "Failed to download package $pkgname"
+            exit 1
+        fi
         mv -f ${pkgname}_*.deb modpkg/.
 
         # Extract content, modify dependency list, and re-bundle package.
@@ -104,8 +127,12 @@ else
         popd >/dev/null
     fi
 
-    echo "using $(ls -1 modpkg/${pkgname}_*.deb | tail -1)"
-    dpkg -i $(ls -1 modpkg/${pkgname}_*.deb | tail -1)
+    pkgdeb=$(ls -1 modpkg/${pkgname}_*.deb | tail -1)
+    echo "using $pkgdeb"
+    if ! dpkg -i "$pkgdeb"; then
+        echo "Failed to install package $pkgdeb"
+        exit 1
+    fi
     use_installed_pkg=0
 fi
 
@@ -120,11 +147,22 @@ if [[ -d ${name} ]]; then
     export LIBRARY_PATH=/usr/local/lib
     export CFLAGS="-O2 -march=native -pthread"
 
-    meson setup .. --prefix=/usr/local --libdir=lib && ninja && \
-    /usr/bin/printf "Installing nvidia_drv_video.so to $install_dest\n" && \
-    cp -p nvidia_drv_video.so $install_dest
-
-    [[ $? -ne 0 ]] && exit $?
+    if ! meson setup .. --prefix=/usr/local --libdir=lib; then
+        echo "Failed to configure build with meson"
+        exit 1
+    fi
+    
+    if ! ninja; then
+        echo "Failed to build with ninja"
+        exit 1
+    fi
+    
+    /usr/bin/printf "Installing nvidia_drv_video.so to %s\n" "$install_dest"
+    
+    if ! cp -p nvidia_drv_video.so "$install_dest"; then
+        echo "Failed to install driver to $install_dest"
+        exit 1
+    fi
 
     if [[ -f /usr/local/lib/dri/nvdec_drv_video.so ]]; then
         set -x
@@ -133,6 +171,12 @@ if [[ -d ${name} ]]; then
         popd >/dev/null
     fi
 
-    [[ $use_installed_pkg -eq 0 ]] && apt remove -y $pkgname
+    if [[ $use_installed_pkg -eq 0 ]]; then
+        echo "Removing temporary package $pkgname"
+        if ! apt remove -y $pkgname; then
+            echo "Warning: Failed to remove package $pkgname"
+            # Continue anyway since the build was successful
+        fi
+    fi
 fi
 

@@ -1,0 +1,225 @@
+---
+# libva role - Build and install VA-API libraries
+
+- name: Check for existing libva installation
+  stat:
+    path: /usr/local/lib/libva.so
+  register: libva_check
+  tags: [libva, vaapi]
+
+- name: Set installation facts
+  set_fact:
+    libva_installed: "{{ libva_check.stat.exists }}"
+  tags: [libva, vaapi]
+
+- name: Show libva installation status
+  debug:
+    msg: "libva is {{ 'already installed' if libva_installed else 'not installed' }}"
+  tags: [libva, vaapi]
+
+- name: Create builddir if needed
+  file:
+    path: "{{ builddir }}"
+    state: directory
+    mode: '0755'
+  when: not libva_installed
+  tags: [libva, vaapi]
+
+- name: Check if libva tarball exists
+  stat:
+    path: "{{ builddir }}/libva-{{ libva_version }}.tar.gz"
+  register: libva_tarball
+  when: not libva_installed
+  tags: [libva, vaapi]
+
+- name: Download libva
+  get_url:
+    url: "https://github.com/intel/libva/releases/download/{{ libva_version }}/libva-{{ libva_version }}.tar.gz"
+    dest: "{{ builddir }}/libva-{{ libva_version }}.tar.gz"
+    mode: '0644'
+    timeout: 60
+    validate_certs: yes
+  retries: 3
+  delay: 5
+  when: not libva_installed and not libva_tarball.stat.exists
+  register: libva_download
+  until: libva_download is succeeded
+  tags: [libva, vaapi, download]
+
+- name: Extract libva
+  unarchive:
+    src: "{{ builddir }}/libva-{{ libva_version }}.tar.gz"
+    dest: "{{ builddir }}"
+    remote_src: yes
+    creates: "{{ builddir }}/libva-{{ libva_version }}/configure"
+  when: not libva_installed
+  tags: [libva, vaapi]
+
+- name: Create libva build block
+  block:
+    - name: Configure libva
+      command: ./configure --prefix=/usr/local
+      args:
+        chdir: "{{ builddir }}/libva-{{ libva_version }}"
+        creates: "{{ builddir }}/libva-{{ libva_version }}/Makefile"
+      environment:
+        PKG_CONFIG_PATH: "/usr/local/lib/pkgconfig"
+        CFLAGS: "-O2 -fPIC"
+      register: libva_configure
+        
+    - name: Build libva
+      command: make -j{{ make_jobs }}
+      args:
+        chdir: "{{ builddir }}/libva-{{ libva_version }}"
+      register: libva_build
+        
+    - name: Install libva
+      command: make install
+      args:
+        chdir: "{{ builddir }}/libva-{{ libva_version }}"
+      register: libva_install
+
+  rescue:
+    - name: Handle libva build failure
+      debug:
+        msg: |
+          Failed to build libva. Please check the following:
+          1. Make sure all dependencies are installed
+          2. Check if there are conflicts with existing libraries
+          3. Look for errors in the output above
+          
+          You can retry with: sudo ansible-playbook -i localhost, ansible/install.yml --tags libva
+      
+    - name: Fail the play if libva build failed
+      fail:
+        msg: "Libva build failed. See output above for details."
+  
+  when: not libva_installed
+  tags: [libva, vaapi]
+
+# Now handle libva-utils
+- name: Check for existing libva-utils installation
+  stat:
+    path: /usr/local/bin/vainfo
+  register: vainfo_check
+  tags: [libva, vaapi, utils]
+
+- name: Set libva-utils installation facts
+  set_fact:
+    libva_utils_installed: "{{ vainfo_check.stat.exists }}"
+  tags: [libva, vaapi, utils]
+
+- name: Show libva-utils installation status
+  debug:
+    msg: "libva-utils is {{ 'already installed' if libva_utils_installed else 'not installed' }}"
+  tags: [libva, vaapi, utils]
+
+- name: Check if libva-utils tarball exists
+  stat:
+    path: "{{ builddir }}/libva-utils-{{ libva_utils_version }}.tar.gz"
+  register: libva_utils_tarball
+  when: not libva_utils_installed
+  tags: [libva, vaapi, utils]
+
+- name: Download libva-utils
+  get_url:
+    url: "https://github.com/intel/libva-utils/releases/download/{{ libva_utils_version }}/libva-utils-{{ libva_utils_version }}.tar.gz"
+    dest: "{{ builddir }}/libva-utils-{{ libva_utils_version }}.tar.gz"
+    mode: '0644'
+    timeout: 60
+    validate_certs: yes
+  retries: 3
+  delay: 5
+  when: not libva_utils_installed and not libva_utils_tarball.stat.exists
+  register: libva_utils_download
+  until: libva_utils_download is succeeded
+  tags: [libva, vaapi, utils, download]
+
+- name: Extract libva-utils
+  unarchive:
+    src: "{{ builddir }}/libva-utils-{{ libva_utils_version }}.tar.gz"
+    dest: "{{ builddir }}"
+    remote_src: yes
+    creates: "{{ builddir }}/libva-utils-{{ libva_utils_version }}/configure"
+  when: not libva_utils_installed
+  tags: [libva, vaapi, utils]
+
+- name: Create libva-utils build block
+  block:
+    - name: Configure libva-utils
+      command: ./configure --prefix=/usr/local
+      args:
+        chdir: "{{ builddir }}/libva-utils-{{ libva_utils_version }}"
+        creates: "{{ builddir }}/libva-utils-{{ libva_utils_version }}/Makefile"
+      environment:
+        PKG_CONFIG_PATH: "/usr/local/lib/pkgconfig"
+        CFLAGS: "-O2 -fPIC"
+      register: libva_utils_configure
+        
+    - name: Build libva-utils
+      command: make -j{{ make_jobs }}
+      args:
+        chdir: "{{ builddir }}/libva-utils-{{ libva_utils_version }}"
+      register: libva_utils_build
+        
+    - name: Install libva-utils
+      command: make install
+      args:
+        chdir: "{{ builddir }}/libva-utils-{{ libva_utils_version }}"
+      register: libva_utils_install
+
+  rescue:
+    - name: Handle libva-utils build failure
+      debug:
+        msg: |
+          Failed to build libva-utils. Please check the following:
+          1. Make sure all dependencies are installed
+          2. Make sure libva was built and installed successfully
+          3. Look for errors in the output above
+          
+          You can retry with: sudo ansible-playbook -i localhost, ansible/install.yml --tags "libva,utils"
+      
+    - name: Fail the play if libva-utils build failed
+      fail:
+        msg: "Libva-utils build failed. See output above for details."
+  
+  when: not libva_utils_installed
+  tags: [libva, vaapi, utils]
+
+- name: Verify libva pkgconfig files exist
+  stat:
+    path: "/usr/local/lib/pkgconfig/{{ item }}"
+  register: pkgconfig_files
+  with_items:
+    - libva.pc
+    - libva-drm.pc
+  tags: [libva, vaapi, config]
+
+- name: Create pkgconfig symlinks for system packages if needed
+  file:
+    src: "/usr/local/lib/pkgconfig/{{ item.item }}"
+    dest: "/usr/lib/x86_64-linux-gnu/pkgconfig/{{ item.item }}"
+    state: link
+    force: yes
+  with_items: "{{ pkgconfig_files.results }}"
+  when: item.stat.exists and not libva_installed
+  tags: [libva, vaapi, config]
+
+- name: Run ldconfig to update library cache
+  command: ldconfig
+  changed_when: false
+  tags: [libva, vaapi]
+
+- name: Verify installation with vainfo
+  command: vainfo
+  register: vainfo_output
+  changed_when: false
+  failed_when: false
+  tags: [libva, vaapi, verify]
+
+- name: Show vainfo output summary
+  debug:
+    msg: |
+      VA-API installation {{ 'successful' if vainfo_output.rc == 0 else 'WARNING: not fully working' }}
+      {{ vainfo_output.stdout | default('No output from vainfo') if vainfo_output.rc == 0 else 'vainfo failed. This is normal at this stage as we need to install the NVIDIA drivers.' }}
+  tags: [libva, vaapi, verify]

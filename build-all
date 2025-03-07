@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 if [[ ! -d scripts ]]; then
     echo "Run script from the top of the repo."
@@ -11,7 +11,27 @@ if [[ "$USER" != "root" ]]; then
     exit 1
 fi
 
-cd scripts
+# Check for command line arguments
+WITH_CUDA=0
+for arg in "$@"; do
+    case "$arg" in
+        --with-cuda)
+            WITH_CUDA=1
+            ;;
+        --help)
+            echo "Usage: sudo bash build-all [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --with-cuda    Install CUDA support for latest NVIDIA drivers"
+            echo "  --help         Show this help message"
+            exit 0
+            ;;
+    esac
+done
+
+# Save original directory
+ORIG_DIR=$(pwd)
+cd scripts || { echo "Failed to change to scripts directory"; exit 1; }
 
 for script in [0-9][0-9][0-9]-* ; do
     echo "Launching ${script}..."
@@ -19,7 +39,35 @@ for script in [0-9][0-9][0-9]-* ; do
     echo ""
 done
 
-ldconfig
+if ! ldconfig; then
+    echo "Warning: ldconfig failed, libraries may not be properly configured"
+fi
+
+# If --with-cuda flag is set, install CUDA support
+if [[ $WITH_CUDA -eq 1 ]]; then
+    if [[ -f extras/300-enable-cuda-support ]]; then
+        echo "Installing CUDA support..."
+        ./extras/300-enable-cuda-support || { 
+            echo "CUDA installation failed"; 
+            cd "$ORIG_DIR" || echo "Warning: Failed to return to original directory";
+            exit 1; 
+        }
+    else
+        echo "Error: CUDA support script not found"
+        echo "Please check that the script 'scripts/extras/300-enable-cuda-support' exists"
+    fi
+fi
+
+# Return to original directory
+cd "$ORIG_DIR" || echo "Warning: Failed to return to original directory"
 
 echo "Completed!"
+echo ""
+echo "To verify your installation, run: ./verify-acceleration.sh"
+
+if [[ $WITH_CUDA -eq 0 ]]; then
+    echo ""
+    echo "For CUDA support, run: sudo ./scripts/extras/300-enable-cuda-support"
+    echo "Or rebuild with: sudo bash build-all --with-cuda"
+fi
 

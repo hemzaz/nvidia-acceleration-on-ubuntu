@@ -1,0 +1,142 @@
+---
+# NVIDIA Detection role - Check NVIDIA driver status and version
+
+- name: Check for NVIDIA driver kernel module
+  ansible.builtin.command: lsmod
+  register: lsmod_output
+  changed_when: false
+  check_mode: no
+  tags: [nvidia, detect]
+
+- name: Check if NVIDIA module is loaded
+  set_fact:
+    nvidia_module_loaded: "{{ 'nvidia ' in lsmod_output.stdout }}"
+  tags: [nvidia, detect]
+
+- name: Fail if NVIDIA module is not loaded
+  fail:
+    msg: |
+      NVIDIA kernel module is not loaded. Please ensure NVIDIA drivers are installed correctly.
+      
+      To install NVIDIA drivers on Ubuntu:
+      1. System Settings > Software & Updates > Additional Drivers
+      2. Select the NVIDIA proprietary driver (version {{ min_nvidia_version }}+ recommended)
+      3. Apply changes and reboot
+      
+      Or use the command line:
+      sudo apt update
+      sudo apt install nvidia-driver-X  # Where X is the driver version (e.g., 470, 510, 525)
+      sudo reboot
+  when: not nvidia_module_loaded
+  tags: [nvidia, detect]
+
+- name: Check if nvidia-drm kernel module is loaded
+  set_fact:
+    nvidia_drm_loaded: "{{ 'nvidia_drm' in lsmod_output.stdout }}"
+  tags: [nvidia, detect]
+
+- name: Warn if nvidia-drm module is not loaded
+  debug:
+    msg: |
+      WARNING: nvidia-drm kernel module is not loaded. Hardware acceleration may not work correctly.
+      This might be fixed by enabling modeset and rebooting.
+  when: not nvidia_drm_loaded
+  tags: [nvidia, detect]
+
+- name: Get NVIDIA driver version using nvidia-smi
+  command: nvidia-smi --query-gpu=driver_version --format=csv,noheader
+  register: nvidia_smi_version
+  changed_when: false
+  failed_when: false
+  check_mode: no
+  tags: [nvidia, detect]
+
+- name: Get NVIDIA driver version using nvidia-settings as fallback
+  command: nvidia-settings --version
+  register: nvidia_settings_output
+  changed_when: false
+  failed_when: false
+  when: nvidia_smi_version is failed or nvidia_smi_version.stdout | trim | length == 0
+  check_mode: no
+  tags: [nvidia, detect]
+
+- name: Set NVIDIA version facts from nvidia-smi
+  set_fact:
+    nvidia_version: "{{ nvidia_smi_version.stdout | trim }}"
+    nvidia_version_source: "nvidia-smi"
+  when: nvidia_smi_version is succeeded and nvidia_smi_version.stdout | trim | length > 0
+  tags: [nvidia, detect]
+
+- name: Set NVIDIA version facts from nvidia-settings
+  set_fact:
+    nvidia_version: "{{ nvidia_settings_output.stdout | regex_search('version\\s+(\\d+\\.\\d+)', '\\1') | first }}"
+    nvidia_version_source: "nvidia-settings"
+  when: (nvidia_smi_version is failed or nvidia_smi_version.stdout | trim | length == 0) and 
+        nvidia_settings_output is succeeded and 
+        nvidia_settings_output.stdout is regex('version\\s+\\d+\\.\\d+')
+  tags: [nvidia, detect]
+
+- name: Verify version extraction was successful
+  fail:
+    msg: "Failed to detect NVIDIA driver version. Please ensure NVIDIA drivers are properly installed."
+  when: nvidia_version is not defined
+  tags: [nvidia, detect]
+
+- name: Extract NVIDIA driver major version
+  set_fact:
+    nvidia_major_version: "{{ nvidia_version.split('.')[0] | int }}"
+    nvidia_minor_version: "{{ nvidia_version.split('.')[1] | int if nvidia_version.split('.') | length > 1 else 0 }}"
+  tags: [nvidia, detect]
+
+- name: Check if NVIDIA driver meets minimum requirements
+  set_fact:
+    nvidia_driver_supported: "{{ nvidia_major_version >= min_nvidia_version }}"
+  tags: [nvidia, detect]
+
+- name: Show driver version information
+  debug:
+    msg: |
+      NVIDIA driver version: {{ nvidia_version }} (detected using {{ nvidia_version_source | default('unknown') }})
+      Minimum required version: {{ min_nvidia_version }}
+      This driver {{ 'MEETS' if nvidia_driver_supported else 'DOES NOT MEET' }} minimum requirements.
+  tags: [nvidia, detect]
+
+- name: Show warning if driver is too old
+  debug:
+    msg: |
+      WARNING: Your NVIDIA driver version {{ nvidia_version }} is below the minimum requirement ({{ min_nvidia_version }}).
+      Some acceleration features may not work correctly.
+      Please consider updating your drivers for optimal performance.
+  when: not nvidia_driver_supported
+  tags: [nvidia, detect]
+
+- name: Record driver feature capabilities
+  set_fact:
+    supports_cuda12: "{{ nvidia_major_version >= 525 }}"
+    supports_cuda11: "{{ nvidia_major_version >= 510 }}"
+    supports_basic: "{{ nvidia_major_version >= 470 }}"
+  tags: [nvidia, detect]
+
+- name: Get GPU model information
+  command: nvidia-smi --query-gpu=name --format=csv,noheader
+  register: nvidia_gpu_name
+  changed_when: false
+  failed_when: false
+  check_mode: no
+  tags: [nvidia, detect]
+
+- name: Set GPU model information
+  set_fact:
+    nvidia_gpu_model: "{{ nvidia_gpu_name.stdout | trim }}"
+  when: nvidia_gpu_name is succeeded and nvidia_gpu_name.stdout | trim | length > 0
+  tags: [nvidia, detect]
+
+- name: Show GPU capabilities
+  debug:
+    msg:
+      - "NVIDIA GPU: {{ nvidia_gpu_model | default('Unknown') }}"
+      - "CUDA capabilities:"
+      - "  - CUDA 12.x support: {{ 'Yes' if supports_cuda12 else 'No' }}"
+      - "  - CUDA 11.6+ support: {{ 'Yes' if supports_cuda11 else 'No' }}"
+      - "  - Basic acceleration: {{ 'Yes' if supports_basic else 'No' }}"
+  tags: [nvidia, detect]

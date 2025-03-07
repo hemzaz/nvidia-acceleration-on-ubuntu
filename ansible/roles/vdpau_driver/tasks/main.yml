@@ -1,0 +1,217 @@
+---
+# vdpau_driver role - Build and install VDPAU-enabled VA-API driver
+
+- name: Skip if driver is too old
+  debug:
+    msg: "Skipping VDPAU driver installation - NVIDIA driver version {{ nvidia_version }} is below minimum requirement ({{ min_nvidia_version }})"
+  when: not nvidia_driver_supported
+  tags: [vdpau]
+
+- name: Check if VDPAU driver is already installed
+  stat:
+    path: "{{ vdpau_driver_path }}"
+  register: vdpau_check
+  when: nvidia_driver_supported
+  tags: [vdpau]
+
+- name: Set VDPAU installation fact
+  set_fact:
+    vdpau_driver_installed: "{{ vdpau_check.stat.exists }}"
+    vdpau_enhanced: "{{ supports_cuda11 }}"
+  when: nvidia_driver_supported
+  tags: [vdpau]
+
+- name: Show VDPAU installation status
+  debug:
+    msg: "VDPAU driver is {{ 'already installed' if vdpau_driver_installed else 'not installed' }} ({{ 'Enhanced mode for 510+' if vdpau_enhanced else 'Standard mode' }})"
+  when: nvidia_driver_supported
+  tags: [vdpau]
+
+- name: Create builddir if needed
+  file:
+    path: "{{ builddir }}"
+    state: directory
+    mode: '0755'
+  when: nvidia_driver_supported and not vdpau_driver_installed
+  tags: [vdpau]
+
+# Get the repository - use git module for more control
+- name: Check if vdpau-va-driver-vp9 repo exists
+  stat:
+    path: "{{ builddir }}/vdpau-va-driver-vp9/.git"
+  register: vdpau_repo
+  when: nvidia_driver_supported and not vdpau_driver_installed
+  tags: [vdpau]
+
+- name: Clone vdpau-va-driver-vp9 repository
+  git:
+    repo: https://github.com/xuanruiqi/vdpau-va-driver-vp9.git
+    dest: "{{ builddir }}/vdpau-va-driver-vp9"
+    depth: 1
+    version: master
+  when: nvidia_driver_supported and not vdpau_driver_installed and not vdpau_repo.stat.exists
+  register: vdpau_git
+  tags: [vdpau, download]
+
+# Skip the rest if repository couldn't be cloned
+- name: Build VDPAU driver
+  block:
+    - name: Create backup of original files before patching
+      when: allow_rollback | bool
+      block:
+        - name: Check for src/Makefile.am
+          stat:
+            path: "{{ builddir }}/vdpau-va-driver-vp9/src/Makefile.am"
+          register: makefile_stat
+          
+        - name: Backup src/Makefile.am
+          copy:
+            src: "{{ builddir }}/vdpau-va-driver-vp9/src/Makefile.am"
+            dest: "{{ backup_dir }}/vdpau_makefile.am.backup"
+            remote_src: yes
+          when: makefile_stat.stat.exists
+          
+        - name: Check for src/vdpau_video.c
+          stat:
+            path: "{{ builddir }}/vdpau-va-driver-vp9/src/vdpau_video.c"
+          register: vdpau_video_stat
+          
+        - name: Backup src/vdpau_video.c
+          copy:
+            src: "{{ builddir }}/vdpau-va-driver-vp9/src/vdpau_video.c"
+            dest: "{{ backup_dir }}/vdpau_video.c.backup"
+            remote_src: yes
+          when: vdpau_video_stat.stat.exists
+          
+        - name: Check for src/vdpau_gate.c
+          stat:
+            path: "{{ builddir }}/vdpau-va-driver-vp9/src/vdpau_gate.c"
+          register: vdpau_gate_stat
+          
+        - name: Backup src/vdpau_gate.c
+          copy:
+            src: "{{ builddir }}/vdpau-va-driver-vp9/src/vdpau_gate.c"
+            dest: "{{ backup_dir }}/vdpau_gate.c.backup"
+            remote_src: yes
+          when: vdpau_gate_stat.stat.exists
+
+    # Patch Makefile.am to disable automatic symlink creation
+    - name: Patch Makefile.am to disable symlinks
+      replace:
+        path: "{{ builddir }}/vdpau-va-driver-vp9/src/Makefile.am"
+        regexp: '^install-data-hook:'
+        replace: 'install-data-hook-disabled:'
+      register: makefile_patch
+      
+    # Apply patches for NVIDIA 510+ drivers
+    - name: Apply patches for newer NVIDIA drivers
+      when: vdpau_enhanced
+      block:
+        - name: Check for VdpVideoMixerAttribute array in vdpau_video.c
+          command: grep -q "VdpVideoMixerAttribute attrib\[\]" "{{ builddir }}/vdpau-va-driver-vp9/src/vdpau_video.c"
+          register: vdpau_attrib_check
+          changed_when: false
+          failed_when: false
+          
+        - name: Patch VdpVideoMixerAttribute array for NVIDIA 510+
+          replace:
+            path: "{{ builddir }}/vdpau-va-driver-vp9/src/vdpau_video.c"
+            regexp: 'VdpVideoMixerAttribute attrib\[\]'
+            replace: 'VdpVideoMixerAttribute attrib[VDP_MAX_VIDEO_MIXER_ATTRIBUTES]'
+          when: vdpau_attrib_check.rc == 0
+          register: vdpau_attrib_patch
+          
+        - name: Check for vdp_impl_device_create_x11 in vdpau_gate.c
+          command: grep -q "vdp_impl_device_create_x11" "{{ builddir }}/vdpau-va-driver-vp9/src/vdpau_gate.c"
+          register: vdpau_gate_check
+          changed_when: false
+          failed_when: false
+          
+        - name: Patch VDPAU function reference for NVIDIA 510+
+          replace:
+            path: "{{ builddir }}/vdpau-va-driver-vp9/src/vdpau_gate.c"
+            regexp: 'vdp_impl_device_create_x11'
+            replace: 'vdpau_device_create_x11'
+          when: vdpau_gate_check.rc == 0
+          register: vdpau_gate_patch
+    
+    # Build the driver
+    - name: Run autogen.sh
+      command: ./autogen.sh --prefix=/usr/local --enable-glx
+      args:
+        chdir: "{{ builddir }}/vdpau-va-driver-vp9"
+      environment:
+        PKG_CONFIG_PATH: "/usr/local/lib/pkgconfig"
+        C_INCLUDE_PATH: "/usr/local/include"
+        LIBRARY_PATH: "/usr/local/lib"
+        CFLAGS: "{{ '-O2 -march=native -DHAVE_VDPAU_NVIDIA_510' if vdpau_enhanced else '-O2 -march=native' }}"
+      register: autogen_run
+      
+    - name: Build with make
+      make:
+        chdir: "{{ builddir }}/vdpau-va-driver-vp9"
+        target: "{{ item }}"
+        params:
+          MAKEFLAGS: "-j{{ make_jobs }}"
+      with_items:
+        - all
+      register: make_build
+      
+    - name: Install with make install
+      make:
+        chdir: "{{ builddir }}/vdpau-va-driver-vp9"
+        target: install
+      register: make_install
+      
+    - name: Remove .la file
+      file:
+        path: /usr/local/lib/dri/vdpau_drv_video.la
+        state: absent
+      register: la_remove
+      
+    - name: Set driver installed fact
+      set_fact:
+        vdpau_driver_installed: true
+        
+    - name: Show successful installation
+      debug:
+        msg: "VDPAU driver successfully installed to {{ vdpau_driver_path }}"
+
+  rescue:
+    - name: Handle VDPAU driver build failure
+      debug:
+        msg: |
+          Failed to build VDPAU driver. Please check the following:
+          1. Make sure all dependencies are installed
+          2. Make sure libva is installed
+          3. Look for errors in the output above
+          
+          You can retry with: sudo ansible-playbook -i localhost, ansible/install.yml --tags vdpau
+          
+    - name: Fail the play if VDPAU build failed
+      fail:
+        msg: "VDPAU driver build failed. See output above for details."
+
+  when: nvidia_driver_supported and not vdpau_driver_installed
+  tags: [vdpau]
+
+# Final verification
+- name: Run ldconfig to update library cache
+  command: ldconfig
+  changed_when: false
+  when: nvidia_driver_supported
+  tags: [vdpau]
+
+- name: Verify VDPAU driver works with vainfo
+  command: bash -c "LIBVA_DRIVERS_PATH=/usr/local/lib/dri LIBVA_DRIVER_NAME=vdpau vainfo"
+  register: vdpau_vainfo
+  changed_when: false
+  failed_when: false
+  when: nvidia_driver_supported and vdpau_driver_installed
+  tags: [vdpau, verify]
+
+- name: Show VDPAU driver test result
+  debug:
+    msg: "{{ 'VDPAU driver is working properly' if vdpau_vainfo.rc == 0 else 'WARNING: VDPAU driver installation completed but driver test failed' }}"
+  when: nvidia_driver_supported and vdpau_driver_installed
+  tags: [vdpau, verify]

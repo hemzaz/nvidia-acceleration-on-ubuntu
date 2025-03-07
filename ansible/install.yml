@@ -1,0 +1,102 @@
+---
+# NVIDIA Acceleration on Ubuntu - Ansible Installation Playbook
+# This playbook installs and configures hardware acceleration for NVIDIA graphics on Ubuntu Linux
+
+- name: NVIDIA Acceleration Setup
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Check if running as root
+      fail:
+        msg: "This playbook must be run with sudo or as root"
+      when: ansible_user_id != "root"
+      tags: always
+
+    - name: Check if system is Ubuntu or Debian-based
+      fail:
+        msg: "This playbook is designed for Ubuntu/Debian-based systems. Detected OS: {{ ansible_distribution }}"
+      when: ansible_os_family != "Debian"
+      tags: always
+
+    - name: Check for x86_64 architecture
+      fail:
+        msg: "This playbook requires x86_64 architecture. Detected: {{ ansible_architecture }}"
+      when: ansible_architecture != "x86_64"
+      tags: always
+
+  vars_files:
+    - "group_vars/all.yml"
+
+  environment:
+    PATH: "{{ ansible_env.PATH }}:/usr/local/bin:/usr/bin:/bin"
+    PKG_CONFIG_PATH: "/usr/local/lib/pkgconfig:{{ ansible_env.PKG_CONFIG_PATH | default('') }}"
+    LANG: "C"
+
+  roles:
+    - role: common
+      tags: [common, always]
+
+    - role: dependencies
+      tags: [dependencies]
+
+    - role: nvidia_detection
+      tags: [nvidia, detect]
+
+    - role: libva
+      tags: [libva, vaapi]
+      when: nvidia_driver_supported | bool
+
+    - role: nvcodec
+      tags: [nvcodec]
+      when: nvidia_driver_supported | bool
+
+    - role: vaapi_nvidia
+      tags: [vaapi, nvidia]
+      when: nvidia_driver_supported | bool
+
+    - role: vdpau_driver
+      tags: [vdpau]
+      when: nvidia_driver_supported | bool
+
+    - role: cuda
+      tags: [cuda]
+      when: with_cuda | bool and nvidia_driver_supported | bool
+
+    - role: browsers
+      tags: [browsers]
+      become: false  # Run as regular user for browser setup
+      when: nvidia_driver_supported | bool
+
+    - role: verification
+      tags: [verify]
+      when: nvidia_driver_supported | bool
+
+  post_tasks:
+    - name: Run ldconfig to refresh library cache
+      command: ldconfig
+      changed_when: false
+      tags: [always]
+
+    - name: Display completion message
+      debug:
+        msg: 
+          - "NVIDIA Acceleration has been successfully set up!"
+          - "Driver version: {{ nvidia_version | default('unknown') }}"
+          - "NVDEC driver: {{ 'Installed' if nvdec_driver_installed | default(false) else 'Not installed' }}"
+          - "VDPAU driver: {{ 'Installed' if vdpau_driver_installed | default(false) else 'Not installed' }}"
+          - "CUDA support: {{ 'Installed' if cuda_installed | default(false) else 'Not installed' }}"
+          - ""
+          - "To verify your installation, run: ./verify-acceleration.sh"
+      tags: [always]
+
+    - name: Display failure message if driver not supported
+      debug:
+        msg:
+          - "ERROR: Your NVIDIA driver ({{ nvidia_version | default('Not detected') }}) is not supported"
+          - "Minimum required version: {{ min_nvidia_version }}"
+          - "Please update your NVIDIA drivers and try again"
+      when: not nvidia_driver_supported | default(false)
+      tags: [always]

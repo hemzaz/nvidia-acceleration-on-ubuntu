@@ -1,0 +1,236 @@
+---
+# CUDA role - Install CUDA Toolkit and related packages
+
+- name: Skip if driver is too old or CUDA is not requested
+  debug:
+    msg: "Skipping CUDA installation - {{ 'Driver too old' if not nvidia_driver_supported else 'Not requested' }}"
+  when: not nvidia_driver_supported or not with_cuda
+  tags: [cuda]
+
+- name: Check for existing CUDA installation
+  command: which nvcc
+  register: nvcc_check
+  changed_when: false
+  failed_when: false
+  when: nvidia_driver_supported and with_cuda
+  tags: [cuda]
+
+- name: Check CUDA version if installed
+  block:
+    - name: Get CUDA version
+      command: nvcc --version
+      register: cuda_version_output
+      changed_when: false
+      
+    - name: Extract CUDA version
+      set_fact:
+        cuda_version: "{{ cuda_version_output.stdout | regex_search('release ([0-9.]+)', '\\1') | first | default('unknown') }}"
+        
+    - name: Set CUDA installed flag
+      set_fact:
+        cuda_installed: true
+  when: nvidia_driver_supported and with_cuda and nvcc_check.rc == 0
+  tags: [cuda]
+
+- name: Set CUDA not installed flag
+  set_fact:
+    cuda_installed: false
+  when: nvidia_driver_supported and with_cuda and nvcc_check.rc != 0
+  tags: [cuda]
+
+- name: Show CUDA installation status
+  debug:
+    msg: "CUDA is {{ 'already installed (version ' + cuda_version + ')' if cuda_installed else 'not installed' }}"
+  when: nvidia_driver_supported and with_cuda
+  tags: [cuda]
+
+# Skip the rest if CUDA is already installed
+- name: Install CUDA
+  block:
+    - name: Get Ubuntu version
+      command: lsb_release -rs
+      register: ubuntu_version
+      changed_when: false
+      
+    - name: Convert Ubuntu version for repository URL
+      set_fact:
+        ubuntu_version_nodot: "{{ ubuntu_version.stdout | replace('.', '') }}"
+        
+    - name: Check for CUDA repository
+      stat:
+        path: "/etc/apt/sources.list.d/cuda-ubuntu{{ ubuntu_version_nodot }}-x86_64.list"
+      register: cuda_repo
+      
+    - name: Download CUDA repository keyring
+      get_url:
+        url: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu{{ ubuntu_version_nodot }}/x86_64/cuda-keyring_1.1-1_all.deb"
+        dest: "{{ tmp_dir }}/cuda-keyring.deb"
+        mode: '0644'
+        timeout: 60
+        validate_certs: yes
+      when: not cuda_repo.stat.exists
+      register: keyring_download
+      retries: 3
+      delay: 5
+      until: keyring_download is succeeded
+      
+    - name: Install CUDA repository keyring
+      apt:
+        deb: "{{ tmp_dir }}/cuda-keyring.deb"
+        state: present
+      when: not cuda_repo.stat.exists
+      register: keyring_install
+      
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 0
+      register: apt_update
+      retries: 3
+      delay: 5
+      until: apt_update is succeeded
+      
+    - name: Set CUDA package variables based on driver version
+      set_fact:
+        cuda_version_tag: "{{ 12 if supports_cuda12 else (11 if supports_cuda11 else 10) }}"
+        cuda_version_minor: "{{ 0 if supports_cuda12 else (6 if supports_cuda11 else 2) }}"
+        cuda_package_version: "{{ '-' + nvidia_major_version|string if nvidia_major_version >= 450 else '' }}"
+      
+    - name: Install basic CUDA packages
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - "nvidia-cuda-toolkit"
+        - "nvidia-cuda-dev"
+        - "nvidia-cuda-toolkit-gcc"
+      register: cuda_basic_install
+      retries: 3
+      delay: 5
+      until: cuda_basic_install is succeeded
+      
+    - name: Install CUDA minimal build package
+      apt:
+        name: "cuda-minimal-build-{{ cuda_version_tag }}-{{ cuda_version_minor }}{{ cuda_package_version }}"
+        state: present
+      register: cuda_minimal_install
+      retries: 3
+      delay: 5
+      until: cuda_minimal_install is succeeded
+      failed_when: false  # Don't fail if package not available
+      
+    - name: Install additional CUDA packages for 510+ drivers
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - "cuda-command-line-tools-{{ cuda_version_tag }}-{{ cuda_version_minor }}{{ cuda_package_version }}"
+        - "cuda-libraries-dev-{{ cuda_version_tag }}-{{ cuda_version_minor }}{{ cuda_package_version }}"
+      when: supports_cuda11 or supports_cuda12
+      register: cuda_additional_install
+      retries: 3
+      delay: 5
+      until: cuda_additional_install is succeeded
+      failed_when: false  # Don't fail if packages not available
+      
+    - name: Check for cuDNN package availability
+      command: apt-cache search --names-only libcudnn
+      register: cudnn_availability
+      changed_when: false
+      when: supports_cuda12
+      
+    - name: Install cuDNN if available
+      apt:
+        name: 
+          - "libcudnn8"
+          - "libcudnn8-dev"
+        state: present
+      when: supports_cuda12 and cudnn_availability.stdout != ""
+      register: cudnn_install
+      retries: 3
+      delay: 5
+      until: cudnn_install is succeeded
+      failed_when: false  # Don't fail if packages not available
+      
+    - name: Check for NCCL package availability
+      command: apt-cache search --names-only libnccl
+      register: nccl_availability
+      changed_when: false
+      when: supports_cuda12
+      
+    - name: Install NCCL if available
+      apt:
+        name:
+          - "libnccl2"
+          - "libnccl-dev"
+        state: present
+      when: supports_cuda12 and nccl_availability.stdout != ""
+      register: nccl_install
+      retries: 3
+      delay: 5
+      until: nccl_install is succeeded
+      failed_when: false  # Don't fail if packages not available
+      
+    - name: Create environment script for CUDA
+      copy:
+        dest: /etc/profile.d/cuda-path.sh
+        content: |
+          # NVIDIA CUDA Toolkit paths
+          export PATH="/usr/local/cuda/bin:${PATH}"
+          export LD_LIBRARY_PATH="/usr/local/cuda/lib64:/usr/lib/x86_64-linux-gnu/nvidia/current:${LD_LIBRARY_PATH}"
+        mode: '0755'
+      register: env_script
+      
+    - name: Create CUDA library configuration for ldconfig
+      copy:
+        dest: /etc/ld.so.conf.d/nvidia-cuda.conf
+        content: |
+          /usr/local/cuda/lib64
+          /usr/lib/x86_64-linux-gnu/nvidia/current
+        mode: '0644'
+      register: ldconfig_conf
+      
+    - name: Run ldconfig to update library cache
+      command: ldconfig
+      changed_when: true
+      
+    - name: Verify CUDA installation
+      command: nvcc --version
+      register: cuda_verify
+      changed_when: false
+      failed_when: cuda_verify.rc != 0
+      
+    - name: Extract installed CUDA version
+      set_fact:
+        cuda_version: "{{ cuda_verify.stdout | regex_search('release ([0-9.]+)', '\\1') | first | default('unknown') }}"
+        cuda_installed: true
+      
+    - name: Show CUDA installation success
+      debug:
+        msg: "Successfully installed CUDA version {{ cuda_version }}"
+
+  rescue:
+    - name: Handle CUDA installation failure
+      debug:
+        msg: |
+          Failed to install CUDA. Please check the following:
+          1. Make sure your NVIDIA driver is compatible with CUDA
+          2. Check network connectivity to NVIDIA repositories
+          3. Look for errors in the output above
+          
+          You can retry with: sudo ansible-playbook -i localhost, ansible/install.yml --tags cuda
+          
+    - name: Fail the play if CUDA installation failed
+      fail:
+        msg: "CUDA installation failed. See output above for details."
+
+  when: nvidia_driver_supported and with_cuda and not cuda_installed
+  tags: [cuda]
+
+# Cleanup
+- name: Remove temporary files
+  file:
+    path: "{{ tmp_dir }}/cuda-keyring.deb"
+    state: absent
+  when: nvidia_driver_supported and with_cuda and keyring_download is defined and keyring_download.changed
+  tags: [cuda, cleanup]

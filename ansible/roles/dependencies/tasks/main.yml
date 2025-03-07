@@ -1,0 +1,134 @@
+---
+# Dependencies role - Install required packages for NVIDIA acceleration
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  register: apt_update
+  retries: 3
+  delay: 5
+  until: apt_update is success
+  tags: [packages, apt]
+
+- name: Load dependency variables
+  include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_distribution | lower }}-{{ ansible_distribution_version }}.yml"
+    - "{{ ansible_distribution | lower }}-{{ ansible_distribution_major_version }}.yml"
+    - "{{ ansible_distribution | lower }}.yml"
+    - "{{ ansible_os_family | lower }}.yml"
+    - "default.yml"
+  tags: [packages, apt]
+
+- name: Install build dependencies
+  apt:
+    name: "{{ dependencies_base_packages }}"
+    state: present
+  register: dependencies_install
+  retries: 3
+  delay: 5
+  until: dependencies_install is success
+  tags: [packages, apt]
+
+- name: Install linux headers
+  apt:
+    name: "linux-headers-{{ ansible_kernel }}"
+    state: present
+  register: kernel_headers_install
+  failed_when: false  # Don't fail if headers aren't available for custom kernels
+  retries: 3
+  delay: 5
+  until: kernel_headers_install is success or kernel_headers_install is failed
+  tags: [packages, kernel, apt]
+
+- name: Fallback to generic headers if specific headers fail
+  apt:
+    name: linux-headers-generic
+    state: present
+  when: kernel_headers_install is failed
+  register: generic_headers_install
+  retries: 3
+  delay: 5
+  until: generic_headers_install is success
+  tags: [packages, kernel, apt]
+
+- name: Check if nvidia-settings is installed
+  command: which nvidia-settings
+  register: nvidia_settings_check
+  changed_when: false
+  failed_when: false
+  check_mode: no
+  tags: [nvidia, packages]
+
+- name: Install nvidia-settings if not present
+  apt:
+    name: nvidia-settings
+    state: present
+  when: nvidia_settings_check.rc != 0
+  register: nvidia_settings_install
+  retries: 3
+  delay: 5
+  until: nvidia_settings_install is success
+  tags: [nvidia, packages, apt]
+
+- name: Check if modeset is enabled in any config file
+  shell: grep -q "options nvidia-drm modeset=1" /etc/modprobe.d/*.conf || echo "not_found"
+  register: modeset_check
+  changed_when: false
+  failed_when: false
+  check_mode: no
+  tags: [nvidia, modeset]
+
+- name: Backup existing nvidia modeset configuration
+  block:
+    - name: Find existing nvidia modeset config file
+      find:
+        paths: /etc/modprobe.d
+        patterns: "*nvidia*modeset*.conf"
+      register: nvidia_modeset_files
+      
+    - name: Backup existing nvidia modeset files
+      copy:
+        src: "{{ item.path }}"
+        dest: "{{ backup_dir }}/{{ item.path | basename }}"
+        remote_src: yes
+      with_items: "{{ nvidia_modeset_files.files }}"
+      when: nvidia_modeset_files.matched > 0 and allow_rollback | bool
+  when: modeset_check.stdout == "not_found"
+  tags: [nvidia, modeset, backup]
+
+- name: Create modeset configuration if not exists
+  copy:
+    dest: /etc/modprobe.d/enable-nvidia-modeset.conf
+    content: |
+      options nvidia-drm modeset=1
+    mode: '0644'
+  when: modeset_check.stdout == "not_found"
+  register: modeset_file_created
+  tags: [nvidia, modeset]
+
+- name: Update initramfs if modeset was configured
+  command: update-initramfs -u -k all
+  when: modeset_file_created.changed
+  tags: [nvidia, modeset, kernel]
+  
+- name: Check disk space availability
+  shell: >
+    df -P {{ builddir }} | tail -1 | awk '{print $4}'
+  register: available_space
+  changed_when: false
+  check_mode: no
+  tags: [system, validation]
+
+- name: Warning if low disk space
+  debug:
+    msg: "WARNING: Low disk space ({{ (available_space.stdout|int / 1024 / 1024) | round(2) }}GB available). Installation requires at least 2GB free space."
+  when: (available_space.stdout|int / 1024 / 1024) < 2
+  tags: [system, validation]
+
+- name: Fail if critically low disk space
+  fail:
+    msg: "CRITICAL: Insufficient disk space ({{ (available_space.stdout|int / 1024 / 1024) | round(2) }}GB available). Installation requires at least 1GB free space."
+  when: (available_space.stdout|int / 1024 / 1024) < 1
+  tags: [system, validation]

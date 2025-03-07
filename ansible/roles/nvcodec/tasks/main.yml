@@ -1,0 +1,111 @@
+---
+# nvcodec role - Install NVIDIA codec headers
+
+- name: Skip if driver is too old
+  debug:
+    msg: "Skipping nvcodec installation - NVIDIA driver version {{ nvidia_version }} is below minimum requirement ({{ min_nvidia_version }})"
+  when: not nvidia_driver_supported
+  tags: [nvcodec, headers]
+
+- name: Check if nvcodec headers are already installed
+  stat:
+    path: /usr/local/include/ffnvcodec/dynlink_cuda.h
+  register: nvcodec_check
+  when: nvidia_driver_supported
+  tags: [nvcodec, headers]
+
+- name: Set nvcodec installation fact
+  set_fact:
+    nvcodec_installed: "{{ nvcodec_check.stat.exists }}"
+  when: nvidia_driver_supported
+  tags: [nvcodec, headers]
+
+- name: Show nvcodec installation status
+  debug:
+    msg: "nvcodec headers are {{ 'already installed' if nvcodec_installed else 'not installed' }}"
+  when: nvidia_driver_supported
+  tags: [nvcodec, headers]
+
+- name: Create builddir if needed
+  file:
+    path: "{{ builddir }}"
+    state: directory
+    mode: '0755'
+  when: nvidia_driver_supported and not nvcodec_installed
+  tags: [nvcodec, headers]
+
+- name: Check if nvcodec tarball exists
+  stat:
+    path: "{{ builddir }}/nv-codec-headers-{{ nv_codec_version }}.tar.gz"
+  register: nvcodec_tarball
+  when: nvidia_driver_supported and not nvcodec_installed
+  tags: [nvcodec, headers]
+
+- name: Download nvcodec headers
+  get_url:
+    url: "https://github.com/FFmpeg/nv-codec-headers/releases/download/n{{ nv_codec_version }}/nv-codec-headers-{{ nv_codec_version }}.tar.gz"
+    dest: "{{ builddir }}/nv-codec-headers-{{ nv_codec_version }}.tar.gz"
+    mode: '0644'
+    timeout: 60
+    validate_certs: yes
+  retries: 3
+  delay: 5
+  when: nvidia_driver_supported and not nvcodec_installed and not nvcodec_tarball.stat.exists
+  register: nvcodec_download
+  until: nvcodec_download is succeeded
+  tags: [nvcodec, headers, download]
+
+- name: Extract nvcodec headers
+  unarchive:
+    src: "{{ builddir }}/nv-codec-headers-{{ nv_codec_version }}.tar.gz"
+    dest: "{{ builddir }}"
+    remote_src: yes
+    creates: "{{ builddir }}/nv-codec-headers-{{ nv_codec_version }}/Makefile"
+  when: nvidia_driver_supported and not nvcodec_installed
+  tags: [nvcodec, headers]
+
+- name: Build and install nvcodec headers
+  block:
+    - name: Build and install nvcodec headers
+      make:
+        chdir: "{{ builddir }}/nv-codec-headers-{{ nv_codec_version }}"
+        params:
+          PREFIX: /usr/local
+          LIBDIR: lib
+        target: "{{ item }}"
+      with_items:
+        - all
+        - install
+      register: nvcodec_make
+
+    - name: Verify installation
+      stat:
+        path: /usr/local/include/ffnvcodec/dynlink_cuda.h
+      register: nvcodec_verify
+
+    - name: Set installation status
+      set_fact:
+        nvcodec_installed: "{{ nvcodec_verify.stat.exists }}"
+
+    - name: Show successful installation
+      debug:
+        msg: "nvcodec headers successfully installed"
+      when: nvcodec_installed
+
+  rescue:
+    - name: Handle nvcodec build failure
+      debug:
+        msg: |
+          Failed to build nvcodec headers. Please check the following:
+          1. Make sure your NVIDIA driver is properly installed
+          2. Check if there are conflicts with existing installs
+          3. Look for errors in the output above
+          
+          You can retry with: sudo ansible-playbook -i localhost, ansible/install.yml --tags nvcodec
+
+    - name: Fail the play if nvcodec build failed
+      fail:
+        msg: "nvcodec headers build failed. See output above for details."
+
+  when: nvidia_driver_supported and not nvcodec_installed
+  tags: [nvcodec, headers]

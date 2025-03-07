@@ -1,6 +1,6 @@
-## nvidia-acceleration-on-ubuntu
+# NVIDIA Acceleration on Ubuntu
 
-Enable hardware acceleration for NVIDIA graphics on Ubuntu Linux.
+Robust and reliable hardware acceleration for NVIDIA graphics on Ubuntu Linux.
 
 * [What's included](#whats-included)
 * [Requirements and preparation](#requirements)
@@ -12,25 +12,44 @@ Enable hardware acceleration for NVIDIA graphics on Ubuntu Linux.
 * [High DPI support](#high-dpi-support)
 * [Enable Wayland Display Server](#enable-wayland)
 * [Watch HDR content](#watch-hdr-content)
+* [CUDA Support and Testing](#cuda-support)
+* [Verification and Troubleshooting](#verification)
+* [Testing the Implementation](#testing)
 * [Epilogue](#epilogue)
 
 ### <a id="whats-included">What's included
 
-This is an automation **how-to** for installing minimum dependencies and building two VA-API drivers for use with NVIDIA graphics.
+This is an automation **how-to** for installing minimum dependencies and building two VA-API drivers for use with NVIDIA graphics. The project focuses on reliability and robustness with comprehensive error handling, and now includes support for the latest NVIDIA drivers and CUDA.
 
 ```text
-build-all  Top-level script for running all scripts inside scripts folder.
-bin        Browser launch scripts to be copied to $HOME/bin/.
-desktop    Desktop files to be copied to $HOME/.local/share/applications/.
-extras     Complementary YouTube player for testing nvdec/nvenc.
-scripts    Contains build scripts for the VA-API drivers.
-install    Browser install scripts.
-uninstall  Browser uninstall scripts.
+# Main Installation Methods
+install-with-ansible  Modern Ansible-based installer with improved robustness and features
+build-all             Legacy top-level script for running all scripts inside scripts folder
+
+# Directory Structure
+ansible/              Ansible playbooks and roles for the improved installation method
+bin/                  Browser launch scripts to be copied to $HOME/bin/
+desktop/              Desktop files to be copied to $HOME/.local/share/applications/
+extras/               Complementary YouTube player for testing nvdec/nvenc
+scripts/              Contains build scripts for the VA-API drivers
+scripts/extras/       Contains optional enhancement scripts (CUDA support, etc)
+install/              Browser install scripts
+uninstall/            Browser uninstall scripts
+test/                 Testing scripts for validating the implementation
+common-functions.sh   Shared utility functions for error handling and security
+verify-acceleration.sh  Diagnostic tool to verify hardware acceleration setup
 ```
 
 ### <a id="requirements">Requirements and preparation
 
-This repo was created and tested for NVIDIA graphics on Ubuntu 20.04.4 (Focal) running Xorg (x11). The NVIDIA proprietary driver version 470.57 or higher is required via "Software & Updates" > "Additional Drivers".
+This repo was created and tested for NVIDIA graphics on Ubuntu 20.04.4 (Focal) and later versions running Xorg (x11) or Wayland. The NVIDIA proprietary driver version 470.57 or higher is required via "Software & Updates" > "Additional Drivers".
+
+For optimal performance with the latest features, NVIDIA driver versions:
+- 470.57+ (Minimum requirement, basic functionality)
+- 510.xx+ (Improved performance, CUDA 11.6 support)
+- 525.xx+ (Latest features, CUDA 12.x support)
+
+Additional dependencies will be installed automatically when running the build scripts, including `bc` and `pkg-config`. The CUDA installation script will add other required dependencies for NVIDIA CUDA support.
 
 In addition, enable modeset for the `nvidia-drm` module. This is a requirement for the NVDEC-enabled VA driver. Look for `nvidia-graphics-drivers-kms.conf` under `/etc/modprobe.d/`. Skip this step if present.
 
@@ -71,13 +90,80 @@ Finally reboot the machine for the changes to take effect.
 
 ### <a id="install-va-drivers">Install VA-API drivers for NVIDIA graphics
 
-The `build-all` script executes all scripts residing under the scripts folder.
+#### Ansible-Based Installation (Recommended)
+
+The recommended way to install is using the new Ansible-based installer, which provides idempotent installation (can be safely re-run) and better error handling:
+
+```bash
+git clone https://github.com/marioroy/nvidia-acceleration-on-ubuntu
+cd nvidia-acceleration-on-ubuntu
+sudo ./install-with-ansible
+```
+
+The Ansible implementation offers several advantages:
+
+- **Idempotent installation**: Can be safely re-run without side effects
+- **Better error handling**: Comprehensive validation and error reporting
+- **Modular design**: Components are installed through roles that can be individually managed
+- **Proper dependency management**: Ensures all required dependencies are installed
+- **Automatic driver detection**: Adapts to different NVIDIA driver versions (470+, 510+, 525+)
+- **CUDA integration**: Seamless support for CUDA acceleration
+- **Browser configuration**: Automatically configures browsers with optimal settings
+
+You can customize the installation with various options:
+
+```bash
+# Install with CUDA support
+sudo ./install-with-ansible --with-cuda
+
+# Install specific browsers only
+sudo ./install-with-ansible --browser=firefox --browser=brave
+
+# Skip Ansible installation if already installed
+sudo ./install-with-ansible --skip-ansible-install
+
+# Show verbose output
+sudo ./install-with-ansible --verbose
+
+# Install only specific components
+sudo ./install-with-ansible --tags=dependencies,libva,nvcodec,vaapi_nvidia
+
+# Show all options
+sudo ./install-with-ansible --help
+```
+
+For more detailed information about the Ansible implementation, see [ansible/README.md](ansible/README.md)
+
+#### Traditional Installation (Legacy)
+
+Alternatively, you can use the traditional build script:
 
 ```bash
 git clone https://github.com/marioroy/nvidia-acceleration-on-ubuntu
 cd nvidia-acceleration-on-ubuntu
 sudo bash build-all
 ```
+
+You can also build with CUDA support in one step:
+
+```bash
+sudo bash build-all --with-cuda
+```
+
+#### Optional: Enable CUDA Support
+
+If you need CUDA support for additional acceleration features (required for some AI-enhanced video processing) and didn't use the `--with-cuda` flag above:
+
+```bash
+sudo ./scripts/extras/300-enable-cuda-support
+```
+
+This will install the appropriate CUDA packages based on your NVIDIA driver version:
+- For drivers 470+: Basic CUDA packages
+- For drivers 510+: Additional CUDA 11.6+ support
+- For drivers 525+: Full CUDA 12+ support with cuDNN and NCCL
+
+The script will also configure proper environment variables and library paths in `/etc/profile.d/cuda-path.sh` for system-wide access to CUDA tools and libraries. After installation, you may need to log out and log back in (or `source /etc/profile.d/cuda-path.sh`) for the environment variables to take effect.
 
 Or become root and run each script individually and orderly starting with `000-install-dependencies`. Finally, run `ldconfig`.
 
@@ -97,13 +183,23 @@ exit                            # Exit sudo; remaining steps must run as the nor
 
 The `builddir` folder (once created) serves as a cache folder. Remove `builddir` entirely or the correspondent `*.tar.gz` file(s) to re-fetch/clone from the internet. I'm hoping that the build process succeeds for you as it does for me. However, I may have a package installed that's missing in `000-install-dependencies`. Please reach out if that's the case.
 
-Verify each VA-API driver with `vainfo`.
+To verify your installation, run the included verification script which provides a comprehensive diagnostic report:
 
 ```bash
+./verify-acceleration.sh
+```
+
+You can also manually test each VA-API driver with `vainfo`:
+
+```bash
+# Test NVDEC driver (used by Firefox)
 LIBVA_DRIVERS_PATH=/usr/local/lib/dri LIBVA_DRIVER_NAME=nvdec vainfo
 
+# Test VDPAU driver (used by Chromium-based browsers)
 LIBVA_DRIVERS_PATH=/usr/local/lib/dri LIBVA_DRIVER_NAME=vdpau vainfo
 ```
+
+If the drivers are working correctly, you should see a list of supported profiles without any error messages.
 
 ### <a id="install-mscorefonts">Install Microsoft core fonts
 
@@ -151,7 +247,7 @@ vivaldi-stable.desktop
 
 **launch scripts**
 
-Scripts set `LIBVA_DRIVER_NAME` to `nvdec` or `vdpau`, depending on the browser.
+Scripts set `LIBVA_DRIVER_NAME` to `nvdec` or `vdpau`, depending on the browser. These scripts have been optimized for reliability with comprehensive error handling and clear diagnostic messages.
 
 ```bash
 $ ls -1 ~/bin
@@ -162,6 +258,14 @@ run-google-chrome
 run-opera
 run-vivaldi
 ```
+
+When you run these scripts, they'll automatically detect:
+- If NVIDIA drivers are properly installed
+- Which display server you're using (X11 or Wayland)
+- The appropriate VA-API driver to use
+- The correct scaling factor for your display
+
+You'll see diagnostic messages in the terminal when launching each browser.
 
 ### <a id="install-firefox">Install Firefox as a .deb package
 
@@ -311,6 +415,26 @@ When prompted for your password, click on the gears icon in the lower right hand
 
 To play HDR content, see `youtube-play` inside the extras folder.
 
+### <a id="cuda-support">CUDA Support and Testing
+
+This project now includes improved support for the latest NVIDIA drivers and CUDA:
+
+```bash
+# Install CUDA support (if you didn't use --with-cuda with build-all)
+sudo ./scripts/extras/300-enable-cuda-support
+
+# Test CUDA and hardware acceleration
+./extras/test-cuda-acceleration
+```
+
+With CUDA support enabled, you get:
+- Enhanced hardware video acceleration capabilities
+- Support for AI-enhanced video processing
+- Better compatibility with the latest NVIDIA drivers (510+, 525+)
+- Improved support for more video codecs and formats
+
+The CUDA integration works alongside the VA-API drivers to provide the best possible video acceleration experience.
+
 ### <a id="epilogue">Epilogue
 
 Do you experience longer boot time after installing the driver? The driver checks for a USB3 display. The following will disable it, decreasing boot time.
@@ -331,13 +455,16 @@ cd nvidia-acceleration-on-ubuntu/bin
 cp run-firefox ~/bin/.
 ```
 
-Hardware acceleration is broken in Firefox 102 for NVIDIA graphics. Install a recent [beta](https://ftp.mozilla.org/pub/firefox/releases) to `~/firefox` or wait for the OS vendor to update to the next major release. The `~/bin/run-firefix` script now defaults to launching `~/firefox/firefox` otherwise `/usr/bin/firefox`. Remove the `~/firefox` folder once Firefox 103 is released and installed via `sudo apt upgrade`. Review Firefox settings in the event a new profile is created. Set `media.ffmpeg.vaapi.enabled` to `true`. Optionally, set `media.av1.enabled` to `false` if AV1 is not supported by your graphics card.
+The `~/bin/run-firefox` script is designed to automatically detect Firefox installations and prefer `~/firefox/firefox` if available, otherwise it will use `/usr/bin/firefox`. If you need to use a specific Firefox version for hardware acceleration compatibility, you can install it to your home directory:
 
 ```bash
 cd ~/Downloads
-wget https://ftp.mozilla.org/pub/firefox/releases/103.0b7/linux-x86_64/en-US/firefox-103.0b7.tar.bz2
-tar xjf firefox-103.0b7.tar.bz2 -C ~/
+# Get the latest stable version or a specific version you need
+wget https://download.mozilla.org/?product=firefox-latest-ssl&os=linux64&lang=en-US -O firefox-latest.tar.bz2
+tar xjf firefox-latest.tar.bz2 -C ~/
 ```
+
+After installing a specific Firefox version, review your settings in `about:config`. Make sure `media.ffmpeg.vaapi.enabled` is set to `true`. Optionally, set `media.av1.enabled` to `false` if AV1 is not supported by your graphics card.
 
 Some things are still broken in Wayland using the NVIDIA proprietary driver; i.e. nvidia-settings and VDPAU-enabled VA driver not working. Please **do not** send PRs regarding Wayland.
 
@@ -348,13 +475,72 @@ sudo apt update
 sudo apt upgrade
 ```
 
-Widevine may not work in Chromium (Ungoogled-Chrome) and Opera. This includes h264/aac not working in Opera. To resolve the issue, run the `fix-widevine` script found inside the `bin` folder. It requires Google Chrome on the system as the script makes a symbolic link to Google's `WidevineCdm` folder. The fix for opera is more involved, requiring `libffmpeg.so` from the web. Periodically run the script whenever Opera is updated. Update the WidevineCdm component using Google Chrome, where it resides.
+### <a id="verification">Verification and Troubleshooting
+
+The project includes a comprehensive verification tool to help you diagnose any issues with your hardware acceleration setup. Run it to get a detailed report:
 
 ```bash
-sudo ./fix-widevine   # as super user
+./verify-acceleration.sh
 ```
 
-Restart Chromium and/or Opera. Chromium may requires 2 restarts.
+This script checks:
+- NVIDIA driver installation and version
+- VA-API driver availability and functionality
+- Browser installations and configurations
+- Widevine DRM support
+- Display server compatibility
+
+If any components aren't working correctly, the script will provide specific guidance on how to fix the issues.
+
+#### Fixing Widevine for Streaming Content
+
+Widevine may not work in Chromium (Ungoogled-Chrome) and Opera. This includes h264/aac not working in Opera. To resolve the issue, run the improved `fix-widevine` script found inside the `bin` folder. It requires Google Chrome on the system as the script makes a symbolic link to Google's `WidevineCdm` folder.
+
+```bash
+sudo ./bin/fix-widevine   # as super user
+```
+
+The script has been enhanced with better error handling, secure download mechanisms, and verification of downloaded components. After running it, restart Chromium and/or Opera. Chromium may require 2 restarts.
+
+Periodically run the script whenever Opera is updated. Update the WidevineCdm component using Google Chrome, where it resides.
+
+### <a id="testing">Testing the Implementation
+
+The project includes comprehensive testing tools to verify the Ansible implementation works correctly across different environments. These tools are located in the `test/` directory.
+
+#### Quickemu VM Testing
+
+For testing with real NVIDIA hardware:
+
+```bash
+./test/test-with-quickemu.sh
+```
+
+This creates a test environment using Quickemu that:
+- Sets up an Ubuntu VM with NVIDIA GPU passthrough
+- Installs the NVIDIA drivers
+- Runs the Ansible installation with various configurations
+- Generates detailed test reports
+
+This approach requires a host with NVIDIA GPU that supports passthrough and proper VFIO setup.
+
+#### Mock Testing
+
+For testing without NVIDIA hardware:
+
+```bash
+./test/test-mock.sh
+```
+
+This creates a mock environment that:
+- Simulates NVIDIA hardware presence
+- Tests the Ansible playbook syntax and structure
+- Verifies different installation configurations
+- Validates the browser role implementation
+
+This approach is useful for development and CI/CD workflows where real hardware isn't available.
+
+For more details, see the [test/README.md](test/README.md) file.
 
 ### Acknowledgement
 

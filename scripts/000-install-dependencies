@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Usage: ./000-install-dependencies
 
 # Get installed packages; append leading and trailing spaces.
@@ -13,7 +13,7 @@ for package_name in \
     libavcodec-extra libdrm-dev libegl-dev libgl-dev libglx-dev \
     libgstreamer1.0-dev libgstreamer-plugins-bad1.0-0 libvdpau-dev \
     libwayland-dev libxcb-dri3-dev libxcb-present-dev \
-    libxext-dev libxfixes-dev \
+    libxext-dev libxfixes-dev bc pkg-config \
 ;do
     if [[ ! ${installed_packages} =~ " ${package_name} " ]]; then
         add_list="${add_list} ${package_name}"
@@ -26,7 +26,16 @@ done
 if [[ -n ${add_list} ]]; then
     add_list=${add_list## } # remove leading whitespace
     echo "apt update -y && apt install -y ${add_list}"
-    apt update -y && apt install -y ${add_list}
+    
+    if ! apt update -y; then
+        echo "Failed to update package repositories"
+        exit 1
+    fi
+    
+    if ! apt install -y ${add_list}; then
+        echo "Failed to install required packages"
+        exit 1
+    fi
 fi
 
 if [[ ${count} -gt 0 ]]; then

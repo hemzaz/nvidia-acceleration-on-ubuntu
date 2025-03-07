@@ -1,0 +1,49 @@
+---
+# Global variables for NVIDIA acceleration setup
+
+# Paths
+nvdec_driver_path: /usr/local/lib/dri/nvdec_drv_video.so
+vdpau_driver_path: /usr/local/lib/dri/vdpau_drv_video.so
+builddir: "{{ playbook_dir }}/../builddir"
+tmp_dir: "/tmp/nvidia-acceleration-ansible"
+user_home: "{{ lookup('env', 'HOME') }}"
+bin_dir: "{{ user_home }}/bin"
+desktop_dir: "{{ user_home }}/.local/share/applications"
+
+# Version requirements
+nv_codec_version: "12.1.14.0"
+min_nvidia_version: 470
+libva_version: "2.19.0"
+libva_utils_version: "2.19.0"
+
+# Feature flags
+with_cuda: false
+cleanup_after_install: true
+validate_installation: true
+allow_rollback: true
+
+# Browser configuration
+browsers_to_install: []  # Empty means install all supported browsers
+desktop_file_mode: '0644'
+launch_script_mode: '0755'
+
+# Supported browsers
+supported_browsers:
+  - firefox
+  - brave
+  - chromium
+  - google-chrome
+  - opera
+  - vivaldi
+
+# CPU configuration
+cpu_count: "{{ ansible_processor_vcpus | default(ansible_processor_count) }}"
+make_jobs: "{{ cpu_count | int }}"
+
+# Installation state tracking
+nvidia_driver_installed: false
+nvidia_driver_supported: false
+nvdec_driver_installed: false
+vdpau_driver_installed: false
+cuda_installed: false
+widevine_installed: false

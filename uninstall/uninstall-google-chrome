@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Uninstall script for Google Chrome.
 # https://www.ubuntuupdates.org/ppa/google_chrome

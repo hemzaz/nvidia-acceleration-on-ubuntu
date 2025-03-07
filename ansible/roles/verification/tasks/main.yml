@@ -1,0 +1,131 @@
+---
+# Verification role - Validate hardware acceleration components
+
+- name: Set desktop terminal command
+  set_fact:
+    terminal_cmd: "{{ ansible_user_id != 'root' | ternary(ansible_user_id, lookup('env', 'SUDO_USER') | default('root')) }}"
+  tags: [verify]
+
+- name: Check if vainfo is available
+  command: which vainfo
+  register: vainfo_check
+  changed_when: false
+  failed_when: false
+  tags: [verify]
+
+- name: Fail if vainfo not found
+  fail:
+    msg: "vainfo not found. Please make sure libva-utils is installed."
+  when: vainfo_check.rc != 0
+  tags: [verify]
+
+- name: Get current display server type
+  command: echo "$XDG_SESSION_TYPE"
+  register: display_server
+  changed_when: false
+  tags: [verify]
+
+- name: Set display server fact
+  set_fact:
+    xdg_session_type: "{{ display_server.stdout | default('x11') }}"
+  tags: [verify]
+
+- name: Verify NVDEC driver with vainfo
+  command: bash -c "LIBVA_DRIVERS_PATH=/usr/local/lib/dri LIBVA_DRIVER_NAME=nvdec vainfo"
+  register: nvdec_vainfo
+  changed_when: false
+  failed_when: false
+  tags: [verify]
+
+- name: Verify VDPAU driver with vainfo
+  command: bash -c "LIBVA_DRIVERS_PATH=/usr/local/lib/dri LIBVA_DRIVER_NAME=vdpau vainfo"
+  register: vdpau_vainfo
+  changed_when: false
+  failed_when: false
+  tags: [verify]
+
+- name: Set vaapi status facts
+  set_fact:
+    nvdec_works: "{{ nvdec_vainfo.rc == 0 }}"
+    vdpau_works: "{{ vdpau_vainfo.rc == 0 }}"
+    wayland_session: "{{ xdg_session_type == 'wayland' }}"
+  tags: [verify]
+
+- name: Count supported profiles
+  set_fact:
+    nvdec_profiles: "{{ nvdec_vainfo.stdout | regex_findall('VAProfile.*') | length if nvdec_works else 0 }}"
+    vdpau_profiles: "{{ vdpau_vainfo.stdout | regex_findall('VAProfile.*') | length if vdpau_works else 0 }}"
+  tags: [verify]
+
+- name: Display detailed driver status
+  debug:
+    msg:
+      - "===== Hardware Acceleration Verification ====="
+      - "NVIDIA driver version: {{ nvidia_version }}"
+      - "Display server: {{ xdg_session_type }}"
+      - ""
+      - "NVDEC driver (for Firefox): {{ 'Working' if nvdec_works else 'Not working' }}"
+      - "{{ '  - Supported profiles: ' + nvdec_profiles | string if nvdec_works else '  - Not available or not working' }}"
+      - ""
+      - "VDPAU driver (for Chrome-based browsers): {{ 'Working' if vdpau_works else 'Not working' }}"
+      - "{{ '  - Supported profiles: ' + vdpau_profiles | string if vdpau_works else '  - Not available or not working' }}"
+      - ""
+      - "CUDA support: {{ 'Installed (version ' + cuda_version + ')' if cuda_installed | default(false) else 'Not installed' }}"
+  tags: [verify]
+
+- name: Show Wayland warning
+  debug:
+    msg:
+      - "WARNING: You are using Wayland display server"
+      - "VDPAU driver (used by Chrome-based browsers) might not work correctly in Wayland"
+      - "Firefox with NVDEC driver should still work in Wayland"
+  when: wayland_session
+  tags: [verify]
+
+- name: Check browser status
+  block:
+    - name: Check for installed browsers
+      stat:
+        path: "{{ bin_dir }}/{{ item }}"
+      register: browser_check
+      with_items:
+        - run-firefox
+        - run-brave
+        - run-chromium
+        - run-google-chrome
+        - run-opera
+        - run-vivaldi
+    
+    - name: Display available browser launch scripts
+      debug:
+        msg:
+          - "Browser launch scripts installed:"
+          - "{{ browser_check.results | json_query('[?stat.exists].item') | join(', ') }}"
+      when: browser_check.results | json_query('[?stat.exists]') | length > 0
+  tags: [verify]
+
+- name: Show overall status
+  debug:
+    msg: |
+      Overall Hardware Acceleration Status: {{ 'WORKING' if nvdec_works or vdpau_works else 'NOT WORKING' }}
+      
+      {{ 'You can use the following browser launch scripts for hardware acceleration:' 
+         if browser_check.results | json_query('[?stat.exists]') | length > 0 
+         else 'No browser launch scripts found. Install browsers with: ./install/install-[browser]' }}
+      
+      {{ browser_check.results | json_query('[?stat.exists].[item]') | map('regex_replace', 'run-', '~/bin/run-') | join('\n') }}
+  tags: [verify]
+
+- name: Display troubleshooting info
+  debug:
+    msg: |
+      Troubleshooting tips:
+      - Run verification script for more details: ./verify-acceleration.sh
+      - Ensure modeset is enabled: options nvidia-drm modeset=1 (/etc/modprobe.d/nvidia-drm-modeset.conf)
+      - Make sure your browser is configured to use hardware acceleration
+      - For Firefox, check about:config for media.ffmpeg.vaapi.enabled=true
+      - For Chrome-based browsers, enable hardware acceleration in settings
+      
+      For more information, see README.md
+  when: not (nvdec_works and vdpau_works)
+  tags: [verify]

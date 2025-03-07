@@ -1,22 +1,38 @@
+# Extra Tools for NVIDIA Acceleration Testing
+
+This directory contains additional tools for testing and verifying NVIDIA hardware acceleration.
+
 ## youtube-play
 
-A YouTube complementary player for YouTube Downloader.
+A YouTube complementary player for testing hardware acceleration.
 
-The player script was created to test `nvdec` and `nvenc` hardware acceleration using NVIDIA graphics.
+The player script was created to test `nvdec` and `nvenc` hardware acceleration using NVIDIA graphics. It provides an excellent way to verify that your hardware acceleration setup is working correctly.
 
 ### Requirements
 
-Install FFmpeg and Python PIP.
+Install FFmpeg and Python PIP:
 
 ```bash
-sudo app update
-sudo app install -y ffmpeg python3-pip
+sudo apt update
+sudo apt install -y ffmpeg python3-pip
 ```
 
-Next, install the YouTube downloader script [yt-dlp](https://github.com/yt-dlp/yt-dlp) as a normal user. The files are placed in `~/.local/bin/`.
+Next, install the YouTube downloader script [yt-dlp](https://github.com/yt-dlp/yt-dlp) as a normal user. The files are placed in `~/.local/bin/`:
 
 ```bash
 pip3 install --user --upgrade yt-dlp
+```
+
+### How It Works with Ansible Installation
+
+When you install using the Ansible implementation, the script dependencies are automatically handled. The player works best after completing either:
+
+```bash
+# Full installation
+sudo ./install-with-ansible
+
+# Or with CUDA support for even better performance
+sudo ./install-with-ansible --with-cuda
 ```
 
 ### Usage

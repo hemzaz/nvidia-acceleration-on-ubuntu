@@ -1,56 +1,71 @@
-#!/bin/bash
-# Launch script for Chromium.
+#!/usr/bin/env bash
+# Launch script for Chromium with hardware acceleration.
 
+# Define browser executable path
 EXECCMD=/usr/bin/chromium
 
+# Verify executable exists and is executable
 if [[ ! -x "$EXECCMD" ]]; then
     echo "ERROR: cannot access '$EXECCMD': No such executable"
     exit 1
 fi
 
+# Handle version check
 if [[ "$1" == "--version" ]]; then
     exec "$EXECCMD" --version
 fi
 
-# Do not enable #ignore-gpu-blocklist for NVIDIA graphics.
-# It may cause extra CPU utilization in Wayland, during video playback.
-
+# Set hardware acceleration environment variables
+# Only for X11 session with NVIDIA GPU and VDPAU driver
 if [[ "$XDG_SESSION_TYPE" != "wayland" ]]; then
-    if [[ -n "$(lsmod | grep nvidia_drm)" && -f /usr/local/lib/dri/vdpau_drv_video.so ]]
-    then
-        # The VDPAU-backend driver works in x11 only.
-        # Hardware acceleration may not work in Chromium.
+    if [[ -n "$(lsmod | grep nvidia_drm 2>/dev/null)" && -f /usr/local/lib/dri/vdpau_drv_video.so ]]; then
+        # The VDPAU-backend driver works in x11 only
+        # Hardware acceleration may not work consistently in Chromium
         export LIBVA_DRIVERS_PATH=/usr/local/lib/dri:/usr/lib/x86_64-linux-gnu/dri
         export LIBVA_DRIVER_NAME=vdpau
+        echo "Hardware acceleration enabled (VDPAU driver)"
+    else
+        echo "Hardware acceleration not available (NVIDIA driver or VDPAU driver not found)"
     fi
 fi
 
+# Calculate display scaling factor
 # Using GNOME? Run gnome-tweaks > Fonts > Scaling Factor
 # Scale Factor is problematic on Ozone-Wayland; ignores force argument
 # Refer to: https://bugs.chromium.org/p/chromium/issues/detail?id=910797
-
 SCALE_FACTOR=$(
-    xrdb -query Xft.dpi | awk '/^Xft.dpi:/ {
+    xrdb -query Xft.dpi 2>/dev/null | awk '/^Xft.dpi:/ {
         printf("%.9f", $2 / 96)
     }'
 )
 
+# Set default scale factor if none detected
+if [[ -z "$SCALE_FACTOR" ]]; then
+    SCALE_FACTOR="1.000000000"
+fi
+
+# Set display server specific options
 if [[ "$XDG_SESSION_TYPE" == "wayland" ]]; then
     GL="egl"
     OZ="--ozone-platform-hint=auto"
     SF=""  # Scale Factor does not work in Wayland
+    echo "Wayland session detected"
 else
     GL="desktop"
     OZ=""
     SF="--high-dpi-support=1 --force-device-scale-factor=$SCALE_FACTOR"
+    echo "X11 session detected, scale factor: $SCALE_FACTOR"
 fi
 
-# Opt-in: change to --enable-font-subpixel-positioning on HiDPI display
-
-exec "$EXECCMD" --window-size=1213,1004 $SF $OZ \
-    --disable-features=UseChromeOSDirectVideoDecoder --disable-gpu-vsync \
+# Set acceleration flags
+ACCEL_FLAGS="--disable-features=UseChromeOSDirectVideoDecoder --disable-gpu-vsync \
     --disable-font-subpixel-positioning --disable-direct-composition \
     --enable-features=VaapiVideoDecoder --enable-smooth-scrolling \
     --enable-accelerated-2d-canvas --enable-gpu-rasterization \
-    --enable-zero-copy --use-gl=$GL $* &> /dev/null &
+    --enable-zero-copy --use-gl=$GL"
+
+# Launch browser with all needed flags
+# Opt-in: change to --enable-font-subpixel-positioning on HiDPI display
+echo "Launching Chromium browser with hardware acceleration..."
+exec "$EXECCMD" --window-size=1213,1004 $SF $OZ $ACCEL_FLAGS "$@" > /dev/null 2>&1 &
 

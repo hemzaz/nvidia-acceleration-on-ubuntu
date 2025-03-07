@@ -1,9 +1,23 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Exit if nvidia-settings is not installed.
 if [[ ! -f /usr/bin/nvidia-settings ]]; then
     echo "$0: package nvidia-settings is not installed, skipping..."
     exit 0
+fi
+
+# Check NVIDIA driver version for compatibility
+version=$(/usr/bin/nvidia-settings --version | grep version)
+version=${version##* } # extract the version string from the line
+major_version=${version%%.*} # extract major, not minor and revision
+echo "Detected NVIDIA driver version: $version (major: $major_version)"
+
+# For drivers 510+, we need to handle newer VDPAU library versions
+if command -v bc &> /dev/null && [[ $(bc -l <<< "${major_version} >= 510") -eq 1 ]]; then
+    echo "Using enhanced build for NVIDIA driver 510+"
+    VDPAU_ENHANCED=1
+else
+    VDPAU_ENHANCED=0
 fi
 
 name="vdpau-va-driver-vp9"
@@ -30,8 +44,25 @@ if [[ ! -f ${name}.tar.gz ]]; then
             print
         }
     ' src/Makefile.am.orig >src/Makefile.am
+    
+    # For newer NVIDIA drivers, patch for compatibility with newer VDPAU API
+    if [[ $VDPAU_ENHANCED -eq 1 ]]; then
+        echo "Patching for compatibility with newer VDPAU libraries in NVIDIA 510+"
+        
+        # Check for needed modifications to src/vdpau_video.c for newer VDPAU API
+        if grep -q "VdpVideoMixerAttribute attrib\[\]" src/vdpau_video.c 2>/dev/null; then
+            echo "Updating VdpVideoMixerAttribute array declaration"
+            sed -i 's/VdpVideoMixerAttribute attrib\[\]/VdpVideoMixerAttribute attrib[VDP_MAX_VIDEO_MIXER_ATTRIBUTES]/' src/vdpau_video.c
+        fi
+        
+        # Check for function name changes in newer VDPAU headers
+        if grep -q "vdp_impl_device_create_x11" src/vdpau_gate.c 2>/dev/null; then
+            echo "Updating VDPAU function references"
+            sed -i 's/vdp_impl_device_create_x11/vdpau_device_create_x11/' src/vdpau_gate.c
+        fi
+    fi
+    
     cd ..
-
     tar czf ${name}.tar.gz ${name}
 fi
 
@@ -44,9 +75,23 @@ if [[ -d ${name} ]]; then
     export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
     export C_INCLUDE_PATH=/usr/local/include
     export LIBRARY_PATH=/usr/local/lib
+    
+    # For newer drivers, add additional CFLAGS
+    if [[ $VDPAU_ENHANCED -eq 1 ]]; then
+        export CFLAGS="-O2 -march=native -DHAVE_VDPAU_NVIDIA_510"
+        echo "Building with CFLAGS: $CFLAGS"
+    fi
 
     ./autogen.sh --prefix=/usr/local --enable-glx && \
     make -j 4 && make install && \
     rm -f /usr/local/lib/dri/vdpau_drv_video.la
+    
+    if [[ $? -eq 0 ]]; then
+        echo "VDPAU driver built successfully for NVIDIA driver version ${version}"
+        echo "To test: LIBVA_DRIVERS_PATH=/usr/local/lib/dri LIBVA_DRIVER_NAME=vdpau vainfo"
+    else
+        echo "Failed to build VDPAU driver"
+        exit 1
+    fi
 fi
 

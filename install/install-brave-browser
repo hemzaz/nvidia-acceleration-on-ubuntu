@@ -1,9 +1,15 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Install script for Brave Browser.
 # https://brave.com/linux/
 
-basepath=$( realpath $( dirname "$0" )/../ )
+# Ensure realpath is available
+if ! command -v realpath &> /dev/null; then
+    echo "realpath command not found, installing coreutils..."
+    sudo apt update -y && sudo apt install -y coreutils
+fi
+
+basepath=$( realpath "$( dirname "$0" )/../" )
 
 if [[ "$USER" == "root" ]]; then
     echo "Please run the script as a normal user, exiting..."
@@ -28,15 +34,62 @@ if [[ $? -eq 1 ]]; then
         sudo apt install -y curl apt-transport-https software-properties-common
     fi
 
-    # Add the public key and repository.
-    curl -s https://brave-browser-apt-release.s3.brave.com/brave-core.asc | gpg --dearmor | \
-        sudo tee /etc/apt/trusted.gpg.d/brave-browser-release.gpg >/dev/null
-
-    listfile=/etc/apt/sources.list.d/brave-browser-release.list
-
-    sudo sh -c "echo \
-        'deb [arch=amd64] https://brave-browser-apt-release.s3.brave.com/ stable main' \
-        >> $listfile"
+    # Add the public key and repository with proper validation
+    echo "# Setting up Brave Browser repository and GPG key"
+    
+    # Create a secure temporary directory
+    TEMP_GPG_DIR=$(mktemp -d)
+    if [[ ! -d "$TEMP_GPG_DIR" ]]; then
+        echo "Failed to create temporary directory"
+        exit 1
+    fi
+    
+    # Set permissions to prevent tampering
+    chmod 700 "$TEMP_GPG_DIR"
+    
+    # Create a temporary keyring
+    KEYRING_FILE="$TEMP_GPG_DIR/brave-browser-keyring.gpg"
+    
+    # Download the GPG key with highest security settings
+    KEY_URL="https://brave-browser-apt-release.s3.brave.com/brave-core.asc"
+    KEY_FILE="$TEMP_GPG_DIR/brave-core.asc"
+    
+    echo "# Downloading GPG key from $KEY_URL"
+    if ! curl -s --tlsv1.2 --proto =https --max-time 30 "$KEY_URL" -o "$KEY_FILE"; then
+        echo "Failed to download GPG key"
+        rm -rf "$TEMP_GPG_DIR"
+        exit 1
+    fi
+    
+    # Verify the key file was downloaded
+    if [[ ! -s "$KEY_FILE" ]]; then
+        echo "Downloaded GPG key file is empty"
+        rm -rf "$TEMP_GPG_DIR"
+        exit 1
+    fi
+    
+    # Import the key to a temporary keyring
+    echo "# Importing GPG key"
+    if ! gpg --no-default-keyring --keyring "$KEYRING_FILE" --import "$KEY_FILE" > /dev/null 2>&1; then
+        echo "Failed to import GPG key"
+        rm -rf "$TEMP_GPG_DIR"
+        exit 1
+    fi
+    
+    # Export the key to the APT trusted.gpg.d directory
+    echo "# Installing GPG key to system"
+    if ! gpg --no-default-keyring --keyring "$KEYRING_FILE" --export | sudo tee /etc/apt/trusted.gpg.d/brave-browser-release.gpg > /dev/null; then
+        echo "Failed to export GPG key to APT"
+        rm -rf "$TEMP_GPG_DIR"
+        exit 1
+    fi
+    
+    # Clean up
+    rm -rf "$TEMP_GPG_DIR"
+    
+    listfile="/etc/apt/sources.list.d/brave-browser-release.list"
+    
+    echo 'deb [arch=amd64] https://brave-browser-apt-release.s3.brave.com/ stable main' | sudo tee "$listfile" >/dev/null
 
     sudo sort -u $listfile -o $listfile
 
@@ -51,14 +104,20 @@ app=brave
 
 # Install run script.
 if [[ ! -f ~/bin/run-${app} ]]; then
-    mkdir -p ~/bin
-    cp -v "${basepath}/bin/run-${app}" ~/bin/.
+    mkdir -p ~/bin || { echo "Failed to create ~/bin directory"; exit 1; }
+    if ! cp -v "${basepath}/bin/run-${app}" ~/bin/.; then
+        echo "Failed to copy run script"
+        exit 1
+    fi
 fi
 
 # Install desktop file.
 if [[ ! -f ~/.local/share/applications/${app}-browser.desktop ]]; then
-    mkdir -p ~/.local/share/applications
-    cp -v "${basepath}/desktop/${app}-browser.desktop" ~/.local/share/applications/.
+    mkdir -p ~/.local/share/applications || { echo "Failed to create applications directory"; exit 1; }
+    if ! cp -v "${basepath}/desktop/${app}-browser.desktop" ~/.local/share/applications/.; then
+        echo "Failed to copy desktop file"
+        exit 1
+    fi
 fi
 
 echo "OK"

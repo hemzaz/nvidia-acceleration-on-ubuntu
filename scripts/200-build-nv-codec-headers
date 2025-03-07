@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Exit if nvidia-settings is not installed.
 if [[ ! -f /usr/bin/nvidia-settings ]]; then
@@ -16,7 +16,8 @@ if [[ $(bc -l <<< "${version} < 470") -eq 1 ]]; then
     exit 0
 fi
 
-nvver="11.1.5.1"
+# Use latest nv-codec-headers
+nvver="12.1.14.0"
 echo "building nv-codec-headers"
 
 mkdir -p builddir && cd builddir

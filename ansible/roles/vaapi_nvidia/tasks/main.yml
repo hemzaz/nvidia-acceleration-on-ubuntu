@@ -1,0 +1,252 @@
+---
+# vaapi_nvidia role - Build and install NVDEC-enabled VA-API driver
+
+- name: Skip if driver is too old
+  debug:
+    msg: "Skipping vaapi-nvidia installation - NVIDIA driver version {{ nvidia_version }} is below minimum requirement ({{ min_nvidia_version }})"
+  when: not nvidia_driver_supported
+  tags: [vaapi, nvidia]
+
+- name: Check if NVDEC driver is already installed
+  stat:
+    path: "{{ nvdec_driver_path }}"
+  register: nvdec_check
+  when: nvidia_driver_supported
+  tags: [vaapi, nvidia]
+
+- name: Set NVDEC installation fact
+  set_fact:
+    nvdec_driver_installed: "{{ nvdec_check.stat.exists }}"
+  when: nvidia_driver_supported
+  tags: [vaapi, nvidia]
+
+- name: Show NVDEC installation status
+  debug:
+    msg: "NVDEC driver is {{ 'already installed' if nvdec_driver_installed else 'not installed' }}"
+  when: nvidia_driver_supported
+  tags: [vaapi, nvidia]
+
+- name: Create builddir if needed
+  file:
+    path: "{{ builddir }}"
+    state: directory
+    mode: '0755'
+  when: nvidia_driver_supported and not nvdec_driver_installed
+  tags: [vaapi, nvidia]
+
+# Get the repository - use git module for more control
+- name: Check if nvidia-vaapi-driver repo exists
+  stat:
+    path: "{{ builddir }}/nvidia-vaapi-driver/.git"
+  register: nvdec_repo
+  when: nvidia_driver_supported and not nvdec_driver_installed
+  tags: [vaapi, nvidia]
+
+- name: Clone nvidia-vaapi-driver repository
+  git:
+    repo: https://github.com/elFarto/nvidia-vaapi-driver
+    dest: "{{ builddir }}/nvidia-vaapi-driver"
+    depth: 1
+    version: master
+  when: nvidia_driver_supported and not nvdec_driver_installed and not nvdec_repo.stat.exists
+  register: nvdec_git
+  tags: [vaapi, nvidia, download]
+
+# Skip the rest if repository couldn't be cloned
+- name: Build NVDEC driver
+  block:
+    # Fix meson.build for compatibility with older meson versions
+    - name: Patch meson.build for compatibility
+      replace:
+        path: "{{ builddir }}/nvidia-vaapi-driver/meson.build"
+        regexp: '^meson_version\s*=.*$'
+        replace: 'meson_version = \'>= 0.53.0\''
+      when: meson_compat_fixes | default(false)
+      register: meson_version_patch
+      
+    # Remove meson.add_devenv block if exists and meson compat fixes enabled
+    - name: Check for meson.add_devenv in meson.build
+      command: grep -n "meson.add_devenv" "{{ builddir }}/nvidia-vaapi-driver/meson.build"
+      register: meson_devenv_check
+      changed_when: false
+      failed_when: false
+      when: meson_compat_fixes | default(false)
+      
+    - name: Patch meson.build to remove meson.add_devenv block
+      shell: |
+        sed -i '/meson.add_devenv/,/)/d' "{{ builddir }}/nvidia-vaapi-driver/meson.build"
+      when: meson_compat_fixes | default(false) and meson_devenv_check.rc == 0
+      register: meson_devenv_patch
+
+    # Install modified libgstreamer-plugins-bad1.0-dev package
+    - name: Check if libgstreamer-plugins-bad1.0-dev is installed
+      command: dpkg-query -W -f='${Status}' libgstreamer-plugins-bad1.0-dev
+      register: gst_pkg_check
+      changed_when: false
+      failed_when: false
+      
+    - name: Handle libgstreamer-plugins-bad1.0-dev
+      when: gst_pkg_check.rc != 0
+      block:
+        - name: Create modpkg directory
+          file:
+            path: "{{ builddir }}/modpkg"
+            state: directory
+            mode: '0755'
+            
+        - name: Get architecture
+          command: dpkg --print-architecture
+          register: pkg_arch
+          changed_when: false
+          
+        - name: Get libgstreamer-plugins-bad1.0-0 version
+          shell: dpkg-query -f '${Version}' -W libgstreamer-plugins-bad1.0-0 || echo "not_installed"
+          register: gst_version
+          changed_when: false
+          failed_when: false
+          
+        - name: Fail if libgstreamer-plugins-bad1.0-0 not installed
+          fail:
+            msg: "libgstreamer-plugins-bad1.0-0 is not installed. Please install it first."
+          when: gst_version.stdout == "not_installed"
+            
+        - name: Download libgstreamer-plugins-bad1.0-dev
+          command: apt download libgstreamer-plugins-bad1.0-dev
+          args:
+            chdir: "{{ builddir }}/modpkg"
+          register: apt_download
+          changed_when: apt_download.rc == 0
+          
+        - name: Make backup of original package
+          shell: |
+            if ls {{ builddir }}/modpkg/libgstreamer-plugins-bad1.0-dev_*.deb >/dev/null 2>&1; then
+              cp {{ builddir }}/modpkg/libgstreamer-plugins-bad1.0-dev_*.deb {{ backup_dir }}/
+              echo "Backup created"
+            else
+              echo "No package found to backup"
+              exit 1
+            fi
+          register: backup_package
+          changed_when: "'Backup created' in backup_package.stdout"
+          failed_when: backup_package.rc != 0
+          when: allow_rollback | bool
+            
+        - name: Extract and modify package
+          shell: |
+            # Get the package filename
+            PKG_FILE=$(ls {{ builddir }}/modpkg/libgstreamer-plugins-bad1.0-dev_*.deb | head -1)
+            
+            # Extract the package
+            dpkg-deb -x "$PKG_FILE" "{{ builddir }}/modpkg/pkg_extract"
+            dpkg-deb --control "$PKG_FILE" "{{ builddir }}/modpkg/pkg_extract/DEBIAN"
+            
+            # Modify dependencies
+            sed -i '/^Depends:/s/,.*$//' "{{ builddir }}/modpkg/pkg_extract/DEBIAN/control"
+            
+            # Rebuild package
+            dpkg -b "{{ builddir }}/modpkg/pkg_extract" "$PKG_FILE"
+            
+            # Clean up extraction directory
+            rm -rf "{{ builddir }}/modpkg/pkg_extract"
+            
+            echo "$PKG_FILE"
+          register: modified_pkg
+          changed_when: true
+            
+        - name: Install modified package
+          apt:
+            deb: "{{ modified_pkg.stdout_lines[-1] }}"
+            state: present
+          register: gst_pkg_install
+
+    # Build the driver
+    - name: Create build directory
+      file:
+        path: "{{ builddir }}/nvidia-vaapi-driver/build"
+        state: directory
+        mode: '0755'
+        
+    - name: Run meson setup
+      command: meson setup .. --prefix=/usr/local --libdir=lib
+      args:
+        chdir: "{{ builddir }}/nvidia-vaapi-driver/build"
+      environment:
+        PKG_CONFIG_PATH: "/usr/local/lib/pkgconfig"
+        C_INCLUDE_PATH: "/usr/local/include"
+        LIBRARY_PATH: "/usr/local/lib"
+        CFLAGS: "{{ '-O2 -march=native -pthread -DHAVE_NVDEC_NVIDIA_' + nvidia_major_version|string if supports_cuda11 else '-O2 -march=native -pthread' }}"
+      register: meson_setup
+        
+    - name: Build with ninja
+      command: ninja
+      args:
+        chdir: "{{ builddir }}/nvidia-vaapi-driver/build"
+      register: ninja_build
+        
+    - name: Install NVDEC driver
+      command: install -D -m644 nvidia_drv_video.so "{{ nvdec_driver_path }}"
+      args:
+        chdir: "{{ builddir }}/nvidia-vaapi-driver/build"
+      register: driver_install
+        
+    - name: Create symlink for compatibility
+      file:
+        src: "{{ nvdec_driver_path | basename }}"
+        dest: "/usr/local/lib/dri/nvidia_drv_video.so"
+        state: link
+      register: symlink_create
+        
+    - name: Set driver installed fact
+      set_fact:
+        nvdec_driver_installed: true
+        
+    - name: Show successful installation
+      debug:
+        msg: "NVDEC driver successfully installed to {{ nvdec_driver_path }}"
+
+  rescue:
+    - name: Handle NVDEC driver build failure
+      debug:
+        msg: |
+          Failed to build NVDEC driver. Please check the following:
+          1. Make sure all dependencies are installed
+          2. Make sure libva and nvcodec headers are installed
+          3. Look for errors in the output above
+          
+          You can retry with: sudo ansible-playbook -i localhost, ansible/install.yml --tags vaapi
+          
+    - name: Fail the play if NVDEC build failed
+      fail:
+        msg: "NVDEC driver build failed. See output above for details."
+  
+  always:
+    - name: Remove temporary libgstreamer-plugins-bad1.0-dev package if installed
+      apt:
+        name: libgstreamer-plugins-bad1.0-dev
+        state: absent
+      when: gst_pkg_check.rc != 0 and gst_pkg_install is defined and gst_pkg_install.changed
+      ignore_errors: yes
+
+  when: nvidia_driver_supported and not nvdec_driver_installed
+  tags: [vaapi, nvidia]
+
+# Final verification
+- name: Run ldconfig to update library cache
+  command: ldconfig
+  changed_when: false
+  when: nvidia_driver_supported
+  tags: [vaapi, nvidia]
+
+- name: Verify NVDEC driver works with vainfo
+  command: bash -c "LIBVA_DRIVERS_PATH=/usr/local/lib/dri LIBVA_DRIVER_NAME=nvdec vainfo"
+  register: nvdec_vainfo
+  changed_when: false
+  failed_when: false
+  when: nvidia_driver_supported and nvdec_driver_installed
+  tags: [vaapi, nvidia, verify]
+
+- name: Show NVDEC driver test result
+  debug:
+    msg: "{{ 'NVDEC driver is working properly' if nvdec_vainfo.rc == 0 else 'WARNING: NVDEC driver installation completed but driver test failed' }}"
+  when: nvidia_driver_supported and nvdec_driver_installed
+  tags: [vaapi, nvidia, verify]

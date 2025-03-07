@@ -1,39 +1,55 @@
-#!/bin/bash
-# Launch script for Firefox.
+#!/usr/bin/env bash
+# Launch script for Firefox with hardware acceleration.
 
+# Check for Firefox in different locations, preferring local installation
 if [[ -x ~/firefox/firefox ]]; then
     EXECCMD=~/firefox/firefox
+    echo "Using local Firefox installation: $EXECCMD"
 else
     EXECCMD=/usr/bin/firefox
+    echo "Using system Firefox installation: $EXECCMD"
 fi
 
+# Verify executable exists and is executable
 if [[ ! -x "$EXECCMD" ]]; then
     echo "ERROR: cannot access '$EXECCMD': No such executable"
     exit 1
 fi
 
+# Handle version check
 if [[ "$1" == "--version" ]]; then
     exec "$EXECCMD" --version
 fi
 
+# Configure hardware acceleration
+# Firefox uses NVDEC which works in both X11 and Wayland
 if [[ -f /usr/bin/nvidia-settings && -f /usr/local/lib/dri/nvdec_drv_video.so ]]; then
-    # The NVDEC-backend driver works in x11 and Wayland.
+    # The NVDEC-backend driver works in both x11 and Wayland
     export LIBVA_DRIVERS_PATH=/usr/lib/x86_64-linux-gnu/dri:/usr/local/lib/dri
     export LIBVA_DRIVER_NAME=nvdec
     export MOZ_DISABLE_RDD_SANDBOX=1
+    echo "Hardware acceleration enabled (NVDEC driver)"
+else
+    echo "Hardware acceleration not available (NVIDIA driver or NVDEC driver not found)"
 fi
 
+# Set display server specific options
 if [[ "$XDG_SESSION_TYPE" == "wayland" ]]; then
     export EGL_PLATFORM=wayland
     export MOZ_ENABLE_WAYLAND=1
+    echo "Wayland session detected"
 else
     export MOZ_DISABLE_WAYLAND=1
     export MOZ_X11_EGL=1
+    echo "X11 session detected"
 fi
 
-export MOZ_ACCELERATED=1
-export MOZ_USE_XINPUT2=1
-export MOZ_WEBRENDER=1
+# Enable Firefox acceleration features
+export MOZ_ACCELERATED=1  # Enable acceleration
+export MOZ_USE_XINPUT2=1  # Enable better input handling
+export MOZ_WEBRENDER=1    # Enable WebRender
 
-exec "$EXECCMD" $* &>/dev/null &
+# Launch Firefox
+echo "Launching Firefox with hardware acceleration..."
+exec "$EXECCMD" "$@" > /dev/null 2>&1 &
 

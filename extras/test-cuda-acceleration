@@ -1,0 +1,198 @@
+#!/usr/bin/env bash
+# test-cuda-acceleration - Test CUDA and hardware acceleration capabilities
+
+# Source common functions if available
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMON_FUNCTIONS="${SCRIPT_DIR}/../common-functions.sh"
+[[ -f "$COMMON_FUNCTIONS" ]] && source "$COMMON_FUNCTIONS"
+
+# Set colors for better output
+GREEN="\033[0;32m"
+RED="\033[0;31m"
+YELLOW="\033[0;33m"
+BLUE="\033[0;34m"
+NC="\033[0m" # No Color
+
+# Print header banner
+header() {
+    echo -e "\n${BLUE}===== $1 =====${NC}\n"
+}
+
+# Print success message
+print_success() {
+    echo -e "${GREEN}[✓] $1${NC}"
+}
+
+# Print error message
+print_error() {
+    echo -e "${RED}[✗] $1${NC}"
+}
+
+# Print warning message
+print_warning() {
+    echo -e "${YELLOW}[!] $1${NC}"
+}
+
+# Check if running in a terminal
+if [[ ! -t 1 ]]; then
+    # No color codes if not running in a terminal
+    GREEN=""
+    RED=""
+    YELLOW=""
+    BLUE=""
+    NC=""
+fi
+
+# Display header
+header "CUDA and Hardware Acceleration Test"
+echo "This tool tests CUDA and hardware acceleration on your system."
+echo "$(date)"
+echo ""
+
+# Check for NVIDIA GPU and driver
+header "NVIDIA Driver and CUDA"
+
+if lsmod | grep -q "^nvidia "; then
+    print_success "NVIDIA kernel module is loaded"
+    
+    if command -v nvidia-settings &> /dev/null; then
+        VERSION=$(nvidia-settings --version | grep version | awk '{print $4}')
+        print_success "NVIDIA driver version: $VERSION"
+        
+        # Check driver version meets minimum requirement
+        MAJOR_VERSION=$(echo "$VERSION" | cut -d'.' -f1)
+        if [[ "$MAJOR_VERSION" -lt 470 ]]; then
+            print_warning "Driver version is below recommended minimum (470)"
+            print_warning "Some acceleration features may not work correctly"
+        else
+            print_success "Driver version meets minimum requirements (>= 470)"
+            
+            # Check for newer features in newer drivers
+            if [[ "$MAJOR_VERSION" -ge 525 ]]; then
+                print_success "Driver version supports CUDA 12 and newer features"
+            elif [[ "$MAJOR_VERSION" -ge 510 ]]; then
+                print_success "Driver version supports CUDA 11.6 features"
+            fi
+        fi
+    else
+        print_error "nvidia-settings is not installed"
+    fi
+else
+    print_error "NVIDIA kernel module is not loaded"
+    exit 1
+fi
+
+# Check for CUDA toolkit
+header "CUDA Toolkit"
+
+if command -v nvcc &> /dev/null; then
+    CUDA_VERSION=$(nvcc --version | grep "release" | awk '{print $5}' | sed 's/,//')
+    print_success "CUDA Toolkit installed (version: $CUDA_VERSION)"
+    
+    # Test CUDA with a basic sample
+    echo -e "${BLUE}Running basic CUDA test...${NC}"
+    
+    # Create a temporary directory for testing
+    TMP_DIR=$(mktemp -d)
+    cd "$TMP_DIR" || exit 1
+    
+    # Create a simple CUDA program
+    cat > cuda_test.cu << 'EOF'
+#include <stdio.h>
+
+__global__ void cuda_hello() {
+    printf("Hello from CUDA! ThreadIdx: (%d, %d, %d)\n", 
+           threadIdx.x, threadIdx.y, threadIdx.z);
+}
+
+int main() {
+    printf("Starting CUDA test...\n");
+    
+    // Run kernel with 1 block of 4 threads
+    cuda_hello<<<1, 4>>>();
+    
+    // Wait for GPU to finish
+    cudaDeviceSynchronize();
+    
+    // Check for errors
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        printf("CUDA error: %s\n", cudaGetErrorString(error));
+        return -1;
+    }
+    
+    printf("CUDA test completed successfully!\n");
+    return 0;
+}
+EOF
+    
+    # Compile and run the test
+    if nvcc cuda_test.cu -o cuda_test; then
+        print_success "CUDA program compiled successfully"
+        
+        echo -e "${BLUE}Running CUDA test program:${NC}"
+        if ./cuda_test; then
+            print_success "CUDA test completed successfully!"
+        else
+            print_error "CUDA test failed to run properly"
+        fi
+    else
+        print_error "Failed to compile CUDA test program"
+    fi
+    
+    # Clean up
+    cd - > /dev/null
+    rm -rf "$TMP_DIR"
+else
+    print_error "CUDA Toolkit is not installed"
+    print_warning "To install CUDA support, run: sudo ./scripts/extras/300-enable-cuda-support"
+fi
+
+# Test VA-API with CUDA
+header "VA-API with CUDA Acceleration"
+
+# Check for VA-API drivers
+if [[ -f /usr/local/lib/dri/nvdec_drv_video.so ]]; then
+    print_success "NVDEC VA-API driver is installed"
+    
+    # Try running vainfo with NVDEC driver
+    VAINFO_OUTPUT=$(LIBVA_DRIVERS_PATH=/usr/local/lib/dri LIBVA_DRIVER_NAME=nvdec vainfo 2>&1)
+    if echo "$VAINFO_OUTPUT" | grep -q "va_openDriver"; then
+        print_success "NVDEC driver is working"
+        
+        # Count supported profiles
+        PROFILES=$(echo "$VAINFO_OUTPUT" | grep -c "VAProfile")
+        print_success "NVDEC driver supports $PROFILES profiles"
+        
+        echo -e "${BLUE}Supported profiles:${NC}"
+        echo "$VAINFO_OUTPUT" | grep "VAProfile" | sed 's/^/    /'
+    else
+        print_error "NVDEC driver failed to initialize"
+    fi
+else
+    print_error "NVDEC VA-API driver is not installed"
+fi
+
+# Summary
+header "Summary"
+
+if lsmod | grep -q "^nvidia " && command -v nvcc &> /dev/null && [[ -f /usr/local/lib/dri/nvdec_drv_video.so ]]; then
+    print_success "Your system is properly configured with NVIDIA drivers and CUDA support"
+    print_success "Hardware video acceleration with CUDA capabilities is available"
+    
+    echo ""
+    echo "You can launch browsers with hardware acceleration using:"
+    echo "  ~/bin/run-firefox"
+    echo "  ~/bin/run-brave"
+    echo "  ~/bin/run-google-chrome"
+else
+    print_error "Your system is not fully configured for CUDA hardware acceleration"
+    
+    if ! command -v nvcc &> /dev/null; then
+        print_warning "CUDA is not installed - run: sudo ./scripts/extras/300-enable-cuda-support"
+    fi
+    
+    if ! [[ -f /usr/local/lib/dri/nvdec_drv_video.so ]]; then
+        print_warning "VA-API drivers are not installed - run: sudo ./build-all"
+    fi
+fi

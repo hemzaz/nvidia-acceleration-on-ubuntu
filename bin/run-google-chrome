@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Launch script for Google Chrome.
 
 EXECCMD=/usr/bin/google-chrome-stable

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Uninstall script for Chromium.
 # https://github.com/ungoogled-software/ungoogled-chromium-debian

@@ -1,0 +1,43 @@
+---
+# Tasks to install a specific browser with hardware acceleration support
+
+- name: Check if browser executable exists
+  stat:
+    path: "{{ browser_config.executable }}"
+  register: browser_executable_stat
+
+- name: "Skip {{ browser_config.display_name }} installation - executable not found"
+  debug:
+    msg: "{{ browser_config.display_name }} executable not found at {{ browser_config.executable }}, skipping."
+  when: not browser_executable_stat.stat.exists
+
+- name: "Install {{ browser_config.display_name }} launch script and desktop file"
+  block:
+    - name: "Create {{ browser_config.display_name }} launch script"
+      template:
+        src: browser-script.j2
+        dest: "{{ bin_dir }}/run-{{ browser_config.name }}"
+        mode: '0755'
+        owner: "{{ ansible_user_id }}"
+        group: "{{ ansible_user_id }}"
+      vars:
+        browser_name: "{{ browser_config.name }}"
+        browser_display_name: "{{ browser_config.display_name }}"
+        browser_executable: "{{ browser_config.executable }}"
+        browser_type: "{{ browser_config.type }}"
+        vdpau_driver_path: "{{ vdpau_driver_path }}"
+        nvdec_driver_path: "{{ nvdec_driver_path }}"
+
+    - name: "Create {{ browser_config.display_name }} desktop file"
+      template:
+        src: desktop-file.j2
+        dest: "{{ desktop_dir }}/{{ browser_config.name }}.desktop"
+        mode: '0644'
+        owner: "{{ ansible_user_id }}"
+        group: "{{ ansible_user_id }}"
+      vars:
+        browser_name: "{{ browser_config.name }}"
+        browser_display_name: "{{ browser_config.display_name }}"
+        browser_icon: "{{ browser_config.icon }}"
+        incognito_flag: "{{ browser_config.incognito_flag }}"
+  when: browser_executable_stat.stat.exists

@@ -1,0 +1,281 @@
+#!/usr/bin/env bash
+# install-with-ansible - Wrapper script for Ansible-based installation
+# This script handles Ansible installation and runs the playbook for NVIDIA acceleration
+
+set -e
+
+# Colors for output
+GREEN="\033[0;32m"
+RED="\033[0;31m"
+YELLOW="\033[0;33m"
+BLUE="\033[0;34m"
+NC="\033[0m" # No Color
+
+# Print header banner
+header() {
+    echo -e "\n${BLUE}===== $1 =====${NC}\n"
+}
+
+# Print success message
+print_success() {
+    echo -e "${GREEN}[✓] $1${NC}"
+}
+
+# Print error message
+print_error() {
+    echo -e "${RED}[✗] $1${NC}"
+}
+
+# Print warning message
+print_warning() {
+    echo -e "${YELLOW}[!] $1${NC}"
+}
+
+# Clean up function to run on exit
+cleanup() {
+    local exit_code=$?
+    if [ $exit_code -ne 0 ]; then
+        echo -e "\n${RED}Installation failed with exit code $exit_code${NC}"
+        echo "You can retry with --verbose flag for more detailed output"
+    fi
+    exit $exit_code
+}
+
+trap cleanup EXIT
+
+# Display help message
+show_help() {
+    header "NVIDIA Acceleration Installer"
+    echo "Usage: sudo $0 [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --with-cuda               Install CUDA support for latest NVIDIA drivers"
+    echo "  --skip-ansible-install    Skip Ansible installation (if already installed)"
+    echo "  --verbose                 Enable verbose output from Ansible"
+    echo "  --browser=NAME            Install specific browser(s) (can be used multiple times)"
+    echo "                            Valid names: brave, chromium, firefox, google-chrome, opera, vivaldi"
+    echo "  --tags=TAGS               Only run specific Ansible tags (comma-separated)"
+    echo "  --no-browsers             Skip browser setup entirely"
+    echo "  --clean                   Clean builddir before installation"
+    echo "  --help                    Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  sudo $0 --with-cuda                           # Full installation with CUDA"
+    echo "  sudo $0 --browser=firefox --browser=brave     # Only install Firefox and Brave"
+    echo "  sudo $0 --tags=dependencies,nvidia,libva      # Only run specific components"
+    echo "  sudo $0 --verbose --with-cuda                 # Full installation with CUDA and verbose output"
+    echo ""
+}
+
+# Check if running as root
+if [[ "$(id -u)" -ne 0 ]]; then
+    print_error "This script must be run as root (with sudo)"
+    exit 1
+fi
+
+# Get the real user (who ran sudo)
+REAL_USER="${SUDO_USER:-$USER}"
+if [[ -z "$REAL_USER" || "$REAL_USER" == "root" ]]; then
+    print_warning "Running as root directly is not recommended. Consider using 'sudo' instead."
+    REAL_USER_HOME="/root"
+else
+    REAL_USER_HOME=$(eval echo ~"$REAL_USER")
+fi
+
+print_success "Running as root for user ${REAL_USER}"
+
+# Check operating system
+if [[ -f /etc/os-release ]]; then
+    . /etc/os-release
+    if [[ "$ID" != "ubuntu" && "$ID_LIKE" != *"debian"* ]]; then
+        print_warning "This script is designed for Ubuntu/Debian-based systems. Your system ($ID) may not be fully compatible."
+    fi
+else
+    print_warning "Could not determine OS type. This script is designed for Ubuntu/Debian-based systems."
+fi
+
+# Parse arguments
+WITH_CUDA=false
+SKIP_ANSIBLE_INSTALL=false
+VERBOSE=false
+BROWSERS=()
+ANSIBLE_TAGS=""
+SKIP_BROWSERS=false
+CLEAN_BUILD=false
+
+for arg in "$@"; do
+    case "$arg" in
+        --with-cuda)
+            WITH_CUDA=true
+            ;;
+        --skip-ansible-install)
+            SKIP_ANSIBLE_INSTALL=true
+            ;;
+        --verbose)
+            VERBOSE=true
+            ;;
+        --browser=*)
+            BROWSER="${arg#*=}"
+            # Validate browser name
+            if [[ ! "$BROWSER" =~ ^(brave|chromium|firefox|google-chrome|opera|vivaldi)$ ]]; then
+                print_error "Invalid browser name: $BROWSER"
+                echo "Valid browsers: brave, chromium, firefox, google-chrome, opera, vivaldi"
+                exit 1
+            fi
+            BROWSERS+=("$BROWSER")
+            ;;
+        --tags=*)
+            ANSIBLE_TAGS="${arg#*=}"
+            ;;
+        --no-browsers)
+            SKIP_BROWSERS=true
+            ;;
+        --clean)
+            CLEAN_BUILD=true
+            ;;
+        --help)
+            show_help
+            exit 0
+            ;;
+        *)
+            print_error "Unknown option: $arg"
+            show_help
+            exit 1
+            ;;
+    esac
+done
+
+# Get the directory of this script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ANSIBLE_DIR="${SCRIPT_DIR}/ansible"
+VERIFY_SCRIPT="${SCRIPT_DIR}/verify-acceleration.sh"
+
+# Check for build directory and clean if requested
+if [[ $CLEAN_BUILD == true ]]; then
+    if [[ -d "${SCRIPT_DIR}/builddir" ]]; then
+        header "Cleaning Build Directory"
+        print_warning "Removing existing builddir"
+        rm -rf "${SCRIPT_DIR}/builddir"
+        mkdir -p "${SCRIPT_DIR}/builddir"
+        print_success "Build directory cleaned"
+    fi
+fi
+
+# Check if Ansible is already installed
+header "Checking for Ansible"
+if ! command -v ansible-playbook &> /dev/null; then
+    if [[ $SKIP_ANSIBLE_INSTALL == true ]]; then
+        print_error "Ansible is not installed and --skip-ansible-install was specified"
+        echo "Please install Ansible manually or run without --skip-ansible-install"
+        exit 1
+    fi
+    
+    print_warning "Ansible not found, installing..."
+    
+    # Update package lists
+    apt update
+    
+    # Install Ansible and dependencies
+    apt install -y software-properties-common
+    
+    # Add Ansible repository (for more recent version)
+    if ! add-apt-repository --yes --update ppa:ansible/ansible; then
+        print_error "Failed to add Ansible repository"
+        echo "You can try installing Ansible manually with:"
+        echo "sudo apt install ansible"
+        exit 1
+    fi
+    
+    # Install Ansible
+    if ! apt install -y ansible; then
+        print_error "Failed to install Ansible"
+        exit 1
+    fi
+    
+    print_success "Ansible installed successfully"
+else
+    print_success "Ansible is already installed"
+    ANSIBLE_VERSION=$(ansible --version | head -n1 | cut -d' ' -f2)
+    echo "Ansible version: $ANSIBLE_VERSION"
+fi
+
+# Ensure Ansible directory exists
+if [[ ! -d "$ANSIBLE_DIR" ]]; then
+    print_error "Ansible directory not found at ${ANSIBLE_DIR}"
+    exit 1
+fi
+
+# Ensure verification script exists and is executable
+if [[ -f "$VERIFY_SCRIPT" ]]; then
+    chmod +x "$VERIFY_SCRIPT"
+else
+    print_warning "Verification script not found at ${VERIFY_SCRIPT}"
+fi
+
+# Build the extra vars string
+EXTRA_VARS="with_cuda=$WITH_CUDA"
+
+# Add browser selections if specified
+if [[ ${#BROWSERS[@]} -gt 0 ]]; then
+    BROWSER_LIST="["
+    for browser in "${BROWSERS[@]}"; do
+        BROWSER_LIST+="'$browser',"
+    done
+    BROWSER_LIST="${BROWSER_LIST%,}]"
+    EXTRA_VARS="${EXTRA_VARS} browsers=${BROWSER_LIST}"
+fi
+
+# Add skip_browsers if requested
+if [[ $SKIP_BROWSERS == true ]]; then
+    EXTRA_VARS="${EXTRA_VARS} skip_browsers=true"
+fi
+
+# Run the Ansible playbook
+header "Running Ansible Playbook"
+print_success "Starting installation with Ansible"
+
+ANSIBLE_CMD="ansible-playbook -i localhost, -e \"${EXTRA_VARS}\""
+
+# Add tags if specified
+if [[ -n "$ANSIBLE_TAGS" ]]; then
+    ANSIBLE_CMD="${ANSIBLE_CMD} --tags \"${ANSIBLE_TAGS}\""
+fi
+
+# Add verbose flag if requested
+if [[ $VERBOSE == true ]]; then
+    ANSIBLE_CMD="${ANSIBLE_CMD} -v"
+fi
+
+ANSIBLE_CMD="${ANSIBLE_CMD} \"${ANSIBLE_DIR}/install.yml\""
+
+# Run the command
+echo "Executing: $ANSIBLE_CMD"
+eval "$ANSIBLE_CMD"
+RESULT=$?
+
+if [[ $RESULT -eq 0 ]]; then
+    header "Installation Complete"
+    print_success "NVIDIA Acceleration has been successfully installed!"
+    
+    # Set proper ownership of user directories
+    if [[ -d "${REAL_USER_HOME}/bin" ]]; then
+        chown -R "$REAL_USER:$REAL_USER" "${REAL_USER_HOME}/bin"
+    fi
+    
+    if [[ -d "${REAL_USER_HOME}/.local/share/applications" ]]; then
+        chown -R "$REAL_USER:$REAL_USER" "${REAL_USER_HOME}/.local/share/applications"
+    fi
+    
+    if [[ -f "$VERIFY_SCRIPT" ]]; then
+        print_success "To verify your installation, run: ./verify-acceleration.sh"
+    fi
+    
+    if [[ $WITH_CUDA == true ]]; then
+        print_success "CUDA support has been installed and configured"
+        print_warning "You may need to log out and log back in for CUDA environment variables to take effect"
+    fi
+else
+    print_error "Installation failed with exit code $RESULT"
+    print_error "Check the output above for errors"
+    exit $RESULT
+fi

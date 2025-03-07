@@ -1,0 +1,99 @@
+---
+# Common role - Basic setup and directory preparation
+
+- name: Set facts for backup and restore
+  set_fact:
+    backup_timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
+    backup_dir: "{{ builddir }}/backup/{{ ansible_date_time.iso8601_basic_short }}"
+  tags: always
+
+- name: Ensure backup directory exists
+  file:
+    path: "{{ backup_dir }}"
+    state: directory
+    mode: '0755'
+  when: allow_rollback | bool
+  tags: always
+
+- name: Ensure builddir exists
+  file:
+    path: "{{ builddir }}"
+    state: directory
+    mode: '0755'
+  tags: always
+
+- name: Ensure temporary directory exists
+  file:
+    path: "{{ tmp_dir }}"
+    state: directory
+    mode: '0755'
+  tags: always
+
+- name: Ensure binary and application directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ lookup('env', 'SUDO_USER') | default(lookup('env', 'USER')) }}"
+    group: "{{ lookup('env', 'SUDO_USER') | default(lookup('env', 'USER')) }}"
+  loop:
+    - "{{ bin_dir }}"
+    - "{{ desktop_dir }}"
+  tags: always
+
+- name: Create /usr/local/lib/dri directory
+  file:
+    path: /usr/local/lib/dri
+    state: directory
+    mode: '0755'
+  tags: always
+
+- name: Check if verify-acceleration.sh exists
+  stat:
+    path: "{{ playbook_dir }}/../verify-acceleration.sh"
+  register: verify_script
+  tags: always
+
+- name: Install verification script if not present
+  copy:
+    src: "{{ playbook_dir }}/../verify-acceleration.sh"
+    dest: "{{ playbook_dir }}/../verify-acceleration.sh"
+    mode: '0755'
+  when: verify_script.stat.exists
+  tags: always
+
+- name: Check for existing installations
+  block:
+    - name: Check for NVDEC driver
+      stat:
+        path: "{{ nvdec_driver_path }}"
+      register: nvdec_check
+      
+    - name: Check for VDPAU driver
+      stat:
+        path: "{{ vdpau_driver_path }}"
+      register: vdpau_check
+      
+    - name: Set installed facts based on checks
+      set_fact:
+        nvdec_driver_installed: "{{ nvdec_check.stat.exists }}"
+        vdpau_driver_installed: "{{ vdpau_check.stat.exists }}"
+  tags: always
+
+- name: Register system architecture and CPU information
+  set_fact:
+    system_arch: "{{ ansible_architecture }}"
+    system_os: "{{ ansible_distribution }} {{ ansible_distribution_version }}"
+    is_physical: "{{ ansible_virtualization_role != 'guest' if ansible_virtualization_role is defined else true }}"
+  tags: always
+
+- name: Display system information
+  debug:
+    msg:
+      - "System: {{ system_os }}"
+      - "Architecture: {{ system_arch }}"
+      - "CPU: {{ ansible_processor[1] }}, {{ cpu_count }} cores"
+      - "Installation mode: {{ 'With CUDA' if with_cuda else 'Without CUDA' }}"
+      - "NVDEC driver: {{ 'Already installed' if nvdec_driver_installed else 'Will be installed' }}"
+      - "VDPAU driver: {{ 'Already installed' if vdpau_driver_installed else 'Will be installed' }}"
+  tags: always

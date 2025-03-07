@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+# 300-enable-cuda-support - Enable CUDA support for hardware acceleration
+
+# Exit on error
+set -e
+
+# Source common functions if available
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMON_FUNCTIONS="${SCRIPT_DIR}/../../common-functions.sh"
+[[ -f "$COMMON_FUNCTIONS" ]] && source "$COMMON_FUNCTIONS"
+
+# Check if running as root
+if [[ "$(id -u)" -ne 0 ]]; then
+    echo "This script must be run as root" >&2
+    exit 1
+fi
+
+# Check for NVIDIA driver
+if ! command -v nvidia-settings &> /dev/null; then
+    echo "NVIDIA drivers are not installed. Please install NVIDIA drivers first." >&2
+    exit 1
+fi
+
+# Get driver version
+DRIVER_VERSION=$(/usr/bin/nvidia-settings --version | grep version)
+DRIVER_VERSION=${DRIVER_VERSION##* } # extract the version string from the line
+MAJOR_VERSION=${DRIVER_VERSION%%.*} # extract major, not minor and revision
+
+echo "Detected NVIDIA driver version: $DRIVER_VERSION"
+
+# Check minimum driver version
+if [[ $(bc -l <<< "${MAJOR_VERSION} < 470") -eq 1 ]]; then
+    echo "NVIDIA driver is too old (${DRIVER_VERSION}). Minimum required is 470.57+" >&2
+    exit 1
+fi
+
+# Install CUDA-related packages depending on driver version
+echo "Installing CUDA support packages..."
+
+# Install required dependencies first
+echo "Installing CUDA dependencies..."
+apt update
+apt install -y build-essential dkms gcc g++ gcc-multilib lsb-release fakeroot \
+    linux-headers-$(uname -r) pkg-config libglvnd-dev libc6-dev \
+    ca-certificates apt-transport-https gnupg2 software-properties-common \
+    bc curl wget
+
+# Check the operating system version
+UBUNTU_VERSION=$(lsb_release -rs)
+echo "Detected Ubuntu version: $UBUNTU_VERSION"
+
+# Setup CUDA repository if not already configured
+if [[ ! -f /etc/apt/sources.list.d/cuda-ubuntu*.list ]]; then
+    echo "Setting up NVIDIA CUDA repository..."
+    
+    # Download and install the NVIDIA CUDA repository package
+    wget -O /tmp/cuda-keyring.deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu$(lsb_release -rs | sed 's/\.//')/x86_64/cuda-keyring_1.1-1_all.deb
+    dpkg -i /tmp/cuda-keyring.deb
+    rm -f /tmp/cuda-keyring.deb
+    
+    apt update
+fi
+
+# Basic CUDA packages for any supported driver
+echo "Installing basic CUDA packages..."
+apt install -y cuda-minimal-build-$(echo "$MAJOR_VERSION" | cut -c1-2) \
+    nvidia-cuda-toolkit nvidia-cuda-dev nvidia-cuda-toolkit-gcc
+
+# For newer drivers (510+), install additional packages
+if [[ $(bc -l <<< "${MAJOR_VERSION} >= 510") -eq 1 ]]; then
+    echo "Installing packages for CUDA 11.6+ support (driver 510+)..."
+    apt install -y nvidia-cuda-toolkit-gcc \
+                  cuda-command-line-tools-$(echo "$MAJOR_VERSION" | cut -c1-2) \
+                  cuda-libraries-dev-$(echo "$MAJOR_VERSION" | cut -c1-2)
+fi
+
+# For the latest drivers (525+), add CUDA 12.x support
+if [[ $(bc -l <<< "${MAJOR_VERSION} >= 525") -eq 1 ]]; then
+    echo "Installing packages for CUDA 12+ support (driver 525+)..."
+    
+    # Add cuDNN repository if needed for the latest version
+    apt install -y libcudnn8 libcudnn8-dev
+    
+    # Try to install NCCL
+    if apt-cache search --names-only 'libnccl' | grep -q 'libnccl2'; then
+        apt install -y libnccl2 libnccl-dev
+    else
+        echo "NCCL packages not found in repository, skipping."
+    fi
+fi
+
+# Check CUDA installation
+if command -v nvcc &> /dev/null; then
+    CUDA_VERSION=$(nvcc --version | grep "release" | awk '{print $5}' | sed 's/,//')
+    echo "CUDA Toolkit version: $CUDA_VERSION"
+    echo "CUDA successfully installed"
+    
+    # Set CUDA paths in environment
+    if [[ ! -f /etc/profile.d/cuda-path.sh ]]; then
+        echo "Setting up CUDA environment paths..."
+        
+        # Create CUDA environment script
+        cat > /etc/profile.d/cuda-path.sh << 'EOF'
+# NVIDIA CUDA Toolkit paths
+export PATH="/usr/local/cuda/bin:${PATH}"
+export LD_LIBRARY_PATH="/usr/local/cuda/lib64:/usr/lib/x86_64-linux-gnu/nvidia/current:${LD_LIBRARY_PATH}"
+EOF
+        chmod +x /etc/profile.d/cuda-path.sh
+        
+        # Add CUDA library path to ldconfig
+        if [[ ! -f /etc/ld.so.conf.d/nvidia-cuda.conf ]]; then
+            echo "/usr/local/cuda/lib64" > /etc/ld.so.conf.d/nvidia-cuda.conf
+            ldconfig
+        fi
+    fi
+else
+    echo "Failed to install CUDA Toolkit" >&2
+    exit 1
+fi
+
+# Create symbolic links for CUDA libraries if needed
+echo "Setting up library links..."
+ldconfig
+
+echo "CUDA support has been enabled successfully."
+echo "To verify installation, run: nvidia-smi"
+echo "For CUDA sample tests, run: cuda-install-samples-*.sh"

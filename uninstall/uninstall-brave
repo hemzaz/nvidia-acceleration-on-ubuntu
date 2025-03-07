@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Uninstall script for Brave Browser.
 # https://brave.com/linux/
@@ -12,7 +12,9 @@ fi
 sudo id >/dev/null; [[ $? -ne 0 ]] && exit 2
 
 # Remove desktop file.
-rm -fv ~/.local/share/applications/brave-browser.desktop
+if [ -d ~/.local/share/applications ]; then
+    rm -fv ~/.local/share/applications/brave-browser.desktop
+fi
 
 # Uninstall package.
 dpkg-query -f '${binary:Package}\n' -W | grep -q '^brave-browser$'
@@ -24,8 +26,13 @@ if [[ $? -eq 0 ]]; then
 fi
 
 # Remove apt files.
-sudo rm -fv /etc/apt/sources.list.d/brave-browser-release.list
-sudo rm -fv /etc/apt/trusted.gpg.d/brave-browser-release.gpg
+if [ -f /etc/apt/sources.list.d/brave-browser-release.list ]; then
+    sudo rm -fv /etc/apt/sources.list.d/brave-browser-release.list
+fi
+
+if [ -f /etc/apt/trusted.gpg.d/brave-browser-release.gpg ]; then
+    sudo rm -fv /etc/apt/trusted.gpg.d/brave-browser-release.gpg
+fi
 
 echo "OK"
 

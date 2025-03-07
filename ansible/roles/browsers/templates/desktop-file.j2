@@ -1,0 +1,21 @@
+[Desktop Entry]
+Version=1.0
+Name={{ browser_display_name }}
+GenericName=Web Browser
+Comment=Access the Internet with hardware acceleration
+Exec=/bin/bash -c "$HOME/bin/run-{{ browser_name }} %U"
+StartupNotify=false
+Terminal=false
+Icon={{ browser_icon }}
+Type=Application
+Categories=Network;WebBrowser;
+MimeType=application/pdf;application/rdf+xml;application/rss+xml;application/xhtml+xml;application/xhtml_xml;application/xml;image/gif;image/jpeg;image/png;image/webp;text/html;text/xml;x-scheme-handler/http;x-scheme-handler/https;
+Actions=new-window;new-private-window;
+
+[Desktop Action new-window]
+Name=New Window
+Exec=/bin/bash -c "$HOME/bin/run-{{ browser_name }}"
+
+[Desktop Action new-private-window]
+Name=New Incognito Window
+Exec=/bin/bash -c "$HOME/bin/run-{{ browser_name }} {{ incognito_flag }}"

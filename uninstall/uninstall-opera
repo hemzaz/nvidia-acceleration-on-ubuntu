@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Uninstall script for Opera.
 # https://www.ubuntuupdates.org/ppa/opera

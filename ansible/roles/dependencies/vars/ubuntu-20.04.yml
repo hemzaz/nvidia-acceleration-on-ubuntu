@@ -1,0 +1,42 @@
+---
+# Dependencies specific to Ubuntu 20.04 (Focal)
+
+dependencies_base_packages:
+  - build-essential
+  - autoconf
+  - automake
+  - cmake
+  - curl
+  - git
+  - libtool
+  - meson
+  - ninja-build
+  - vainfo
+  - libavcodec-extra
+  - libdrm-dev
+  - libegl-dev
+  - libgl-dev
+  - libglx-dev
+  - libgstreamer1.0-dev
+  - libgstreamer-plugins-bad1.0-0
+  - libvdpau-dev
+  - libwayland-dev
+  - libxcb-dri3-dev
+  - libxcb-present-dev
+  - libxext-dev
+  - libxfixes-dev
+  - bc
+  - pkg-config
+  - dkms
+  - ca-certificates
+  - apt-transport-https
+  - gnupg2
+  - software-properties-common
+  - lsb-release
+  - wget
+  - bzip2
+  - gzip
+
+# Meson version on Ubuntu 20.04 is 0.53.2, which may be too old for some components
+# Add a flag to indicate we need to handle older meson compatibility
+meson_compat_fixes: true

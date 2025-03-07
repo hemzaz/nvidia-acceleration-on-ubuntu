@@ -1,0 +1,112 @@
+---
+# Browsers role - Set up browser launch scripts with VA-API hardware acceleration
+
+- name: Define browser list
+  set_fact:
+    browser_list: "{{ browsers | default(supported_browsers) }}"
+
+- name: Debug browser list
+  debug:
+    var: browser_list
+    verbosity: 1
+
+- name: Ensure user bin directory exists
+  file:
+    path: "{{ bin_dir }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user_id }}"
+    group: "{{ ansible_user_id }}"
+
+- name: Ensure desktop file directory exists
+  file:
+    path: "{{ desktop_dir }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user_id }}"
+    group: "{{ ansible_user_id }}"
+
+- name: Define browser configurations
+  set_fact:
+    browser_configs:
+      firefox:
+        name: "firefox"
+        display_name: "Firefox"
+        icon: "firefox"
+        executable: "/usr/bin/firefox"
+        type: "firefox"
+        incognito_flag: "--private-window"
+      brave:
+        name: "brave"
+        display_name: "Brave Web Browser"
+        icon: "brave-browser"
+        executable: "/usr/bin/brave-browser"
+        type: "chromium"
+        incognito_flag: "--incognito"
+      chromium:
+        name: "chromium"
+        display_name: "Chromium"
+        icon: "chromium"
+        executable: "/usr/bin/chromium"
+        type: "chromium"
+        incognito_flag: "--incognito"
+      google-chrome:
+        name: "google-chrome"
+        display_name: "Google Chrome"
+        icon: "google-chrome"
+        executable: "/usr/bin/google-chrome-stable"
+        type: "chromium"
+        incognito_flag: "--incognito"
+      opera:
+        name: "opera"
+        display_name: "Opera"
+        icon: "opera"
+        executable: "/usr/bin/opera"
+        type: "chromium"
+        incognito_flag: "--incognito"
+      vivaldi:
+        name: "vivaldi"
+        display_name: "Vivaldi"
+        icon: "vivaldi"
+        executable: "/usr/bin/vivaldi-stable"
+        type: "chromium"
+        incognito_flag: "--incognito"
+
+- name: Install browser launch scripts and desktop files
+  include_tasks: install_browser.yml
+  vars:
+    browser_name: "{{ item }}"
+    browser_config: "{{ browser_configs[item] }}"
+  loop: "{{ browser_list }}"
+  when: item in browser_configs
+
+- name: Fix Widevine DRM if Google Chrome is installed
+  become: true
+  block:
+    - name: Check if Google Chrome is installed
+      command: which google-chrome-stable
+      register: chrome_check
+      changed_when: false
+      failed_when: false
+
+    - name: Check if Widevine CDM is installed
+      stat:
+        path: /opt/google/chrome/WidevineCdm/manifest.json
+      register: widevine_path
+
+    - name: Copy fix-widevine script to target system
+      template:
+        src: "{{ playbook_dir }}/../bin/fix-widevine"
+        dest: "/usr/local/bin/fix-widevine"
+        mode: '0755'
+        owner: "root"
+        group: "root"
+      when: chrome_check.rc == 0
+
+    - name: Run fix-widevine script if needed
+      command: "/usr/local/bin/fix-widevine"
+      register: widevine_result
+      changed_when: widevine_result.rc == 0
+      failed_when: widevine_result.rc != 0 and widevine_result.rc != 2  # 2 = already fixed
+      when: chrome_check.rc == 0 and widevine_path.stat.exists
+  when: "'google-chrome' in browser_list or 'chromium' in browser_list or 'brave' in browser_list or 'opera' in browser_list"
